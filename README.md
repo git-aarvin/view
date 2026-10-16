@@ -1,4 +1,4 @@
-View is a tiny interface library.
+View is a tiny (**<2kb!**) interface library.
 
 ```js
 const Click = ({ n = 0 } = {}) =>
