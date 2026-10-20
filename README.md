@@ -10,6 +10,5 @@ const Click = ({ n = 0 } = {}) =>
 		Click({ n: n + 1 })}">I've been clicked ${n} times.</button>`;
 
 const click = document.getElementById("click");
-make(click, Click());
-/* free(click); */
+make(click, Click()); // free(click);
 ```
