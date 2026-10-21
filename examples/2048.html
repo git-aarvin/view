@@ -217,305 +217,181 @@ hr { border: 0; border-bottom: 1px solid #d8d4d0; margin: 20px 0 30px; }
 </style>
 </head>
 <body>
-	<main class="page" id="app"></main>
-	<script type="module">
-import { html, make } from "../view.js";
-const GAME_KEY = "view-2048-game";
-const BEST_KEY = "view-2048-best";
-const readBest = () => {
-	try {
-		const value = Number(localStorage.getItem(BEST_KEY));
-		return Number.isFinite(value) && value > 0 ? value : 0;
-	} catch {
-		return 0;
-	}
-};
-const addRandomTile = board => {
-	const empty = [];
-	board.forEach((value, index) => {
-		if (!value) empty.push(index);
-	});
-	if (!empty.length) return -1;
-	const index = empty[Math.floor(Math.random() * empty.length)];
-	board[index] = Math.random() < 0.9 ? 2 : 4;
-	return index;
-};
-const freshBoard = () => {
-	const board = Array(16).fill(0);
-	addRandomTile(board);
-	addRandomTile(board);
-	return board;
-};
-const readSavedGame = () => {
-	try {
-		const saved = JSON.parse(localStorage.getItem(GAME_KEY) || "null");
-		if (!saved || !Array.isArray(saved.board) || saved.board.length !== 16 ||
-			!saved.board.every(value => Number.isSafeInteger(value) && value >= 0)) {
-			return null;
-		}
-		return saved;
-	} catch {
-		return null;
-	}
-};
-const restored = readSavedGame();
-const state = {
-	board: restored ? restored.board.slice() : freshBoard(),
-	score: restored && Number.isFinite(restored.score) ? Math.max(0, restored.score) : 0,
-	best: Math.max(readBest(), restored && Number.isFinite(restored.best) ? restored.best : 0),
-	won: Boolean(restored && restored.won),
-	over: Boolean(restored && restored.over),
-	keepPlaying: Boolean(restored && restored.keepPlaying),
-	undo: null,
-	lastMotion: null
-};
-const app = document.getElementById("app");
-const saveGame = () => {
-	try {
-		localStorage.setItem(GAME_KEY, JSON.stringify({
-			board: state.board,
-			score: state.score,
-			best: state.best,
-			won: state.won,
-			over: state.over,
-			keepPlaying: state.keepPlaying
-		}));
-		localStorage.setItem(BEST_KEY, String(state.best));
-	} catch {
-		// The game remains playable when browser storage is unavailable.
-	}
-};
-const canMove = board => {
-	for (let row = 0; row < 4; row++) {
-		for (let col = 0; col < 4; col++) {
-			const index = row * 4 + col;
-			if (!board[index]) return true;
-			if (col < 3 && board[index] === board[index + 1]) return true;
-			if (row < 3 && board[index] === board[index + 4]) return true;
-		}
-	}
-	return false;
-};
-const move = direction => {
-	if (state.over || (state.won && !state.keepPlaying)) return;
-	const next = state.board.slice();
-	let gained = 0;
-	const before = {
-		board: state.board.slice(),
-		score: state.score,
-		won: state.won,
-		over: state.over,
-		keepPlaying: state.keepPlaying
-	};
-	const motionSources = Array(16).fill(null);
-	const mergedIndexes = new Set();
-	for (let line = 0; line < 4; line++) {
-		let indices;
-		if (direction === "left") {
-			indices = [0, 1, 2, 3].map(col => line * 4 + col);
-		} else if (direction === "right") {
-			indices = [3, 2, 1, 0].map(col => line * 4 + col);
-		} else if (direction === "up") {
-			indices = [0, 1, 2, 3].map(row => row * 4 + line);
-		} else {
-			indices = [3, 2, 1, 0].map(row => row * 4 + line);
-		}
-		const values = indices
-			.map(index => ({ value: state.board[index], source: index }))
-			.filter(tile => tile.value);
-		const merged = [];
-		for (let index = 0; index < values.length; index++) {
-			if (values[index].value === values[index + 1]?.value) {
-				const value = values[index].value * 2;
-				merged.push({ value, source: values[index].source, merged: true });
-				gained += value;
-				index++;
-			} else {
-				merged.push({ value: values[index].value, source: values[index].source, merged: false });
-			}
-		}
-		while (merged.length < 4) merged.push({ value: 0, source: null, merged: false });
-		indices.forEach((target, offset) => {
-			next[target] = merged[offset].value;
-			motionSources[target] = merged[offset].source;
-			if (merged[offset].merged) mergedIndexes.add(target);
-		});
-	}
-	if (next.every((value, index) => value === state.board[index])) return;
-	state.undo = before;
-	state.board = next;
-	state.score += gained;
-	if (state.score > state.best) state.best = state.score;
-	const spawnedIndex = addRandomTile(state.board);
-	state.lastMotion = { sources: motionSources, mergedIndexes, spawnedIndex, gained };
-	const justWon = !state.won && state.board.some(value => value >= 2048);
-	if (justWon) state.won = true;
-	if (!justWon && !canMove(state.board)) state.over = true;
-	saveGame();
-	render();
-};
-const startNewGame = () => {
-	state.board = freshBoard();
-	state.score = 0;
-	state.won = false;
-	state.over = false;
-	state.keepPlaying = false;
-	state.undo = null;
-	state.lastMotion = null;
-	saveGame();
-	render();
-};
-const undoMove = () => {
-	if (!state.undo) return;
-	const previous = state.undo;
-	state.board = previous.board.slice();
-	state.score = previous.score;
-	state.won = previous.won;
-	state.over = previous.over;
-	state.keepPlaying = previous.keepPlaying;
-	state.undo = null;
-	state.lastMotion = null;
-	saveGame();
-	render();
-};
-const keepPlaying = () => {
-	state.lastMotion = null;
-	state.keepPlaying = true;
-	if (!canMove(state.board)) state.over = true;
-	saveGame();
-	render();
-};
-const Cell = ({ value }) => {
-	const level = value > 2048 ? "super" : (value || 0);
-	return html`
-		<div class="tile tile-${level}" role="gridcell"
-			aria-label="${value ? value : "Empty"}">${value ? html`<span>${value}</span>` : null}</div>
-	`;
-};
-const App = () => {
-	const showMessage = state.over || (state.won && !state.keepPlaying);
-	const message = state.over ? "Game over!" : "You win!";
-	return html`
-		<div class="heading">
-			<h1>2048</h1>
-			<div class="scores" aria-label="Scores">
-				<div class="score-box"><span class="score-label">Score</span><span class="score-value">${state.score}</span></div>
-				<div class="score-box"><span class="score-label">Best</span><span class="score-value">${state.best}</span></div>
-			</div>
-		</div>
-		<div class="intro">
-			<p>Join the tiles, get to <strong>2048!</strong></p>
-			<button class="restart-button" type="button" onclick="${startNewGame}">New Game</button>
-		</div>
-		<section class="game-container" aria-label="2048 game">
-			<div class="grid-container" role="grid" aria-label="Game board"
-				onpointerdown="${pointerDown}" onpointerup="${pointerUp}">
-				${state.board.map(value => Cell({ value }))}
-			</div>
-			<div class="game-message ${showMessage ? "active" : ""} ${state.won && !state.over ? "game-won" : "game-over"}" aria-live="polite">
-				<p>${message}</p>
-				<div class="lower">
-					${state.won && !state.over && !state.keepPlaying
-						? html`<button type="button" onclick="${keepPlaying}">Keep going</button>`
-						: null}
-					<button type="button" onclick="${startNewGame}">Try again</button>
-				</div>
-			</div>
-		</section>
+	<main class="page">
+		<div id="app"></div>
 		<p class="explanation" id="how-to-play"><strong class="important">How to play:</strong> Use your <strong>arrow keys</strong> or swipe with your fingers to move the tiles. Tiles with the same number merge into one when they touch. Add them up to reach 2048!</p>
 		<hr>
 		<p>You’re playing the original version of 2048, the popular and addictive puzzle game available to play completely free and loved by millions. Do you have what it takes to reach 2048?</p>
 		<p>Try out the official apps for <a href="https://apps.apple.com/us/app/2048-by-gabriele-cirulli/id868076805">iOS</a> and <a href="https://play.google.com/store/apps/details?id=com.gabrielecirulli.app2048">Android</a>! All other versions of this game are derivatives and should be used with caution.</p>
 		<hr>
 		<p>2048 was inspired by <a href="https://apps.apple.com/us/app/1024/id823499224">1024 by Veewo Studio</a> and is conceptually similar to <a href="https://asherv.com/threes/">Threes by Asher Vollmer</a>.</p>
-		<p class="sr-only" aria-live="polite">Current score: ${state.score}. Best score: ${state.best}.</p>
-	`;
+	</main>
+	<script type="module">
+import { html, make } from "../view.js";
+const app = document.getElementById("app");
+const keys = { arrowleft: "left", arrowright: "right", arrowup: "up", arrowdown: "down", a: "left", d: "right", w: "up", s: "down" };
+const order = {
+	left: (line, step) => line * 4 + step,
+	right: (line, step) => line * 4 + 3 - step,
+	up: (line, step) => step * 4 + line,
+	down: (line, step) => (3 - step) * 4 + line
 };
-let pointerStart = null;
-const pointerDown = event => {
-	if (event.isPrimary === false) return;
-	pointerStart = { x: event.clientX, y: event.clientY };
-};
-const pointerUp = event => {
-	if (!pointerStart) return;
-	const dx = event.clientX - pointerStart.x;
-	const dy = event.clientY - pointerStart.y;
-	pointerStart = null;
-	if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
-	if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? "right" : "left");
-	else move(dy > 0 ? "down" : "up");
-};
-document.addEventListener("keydown", event => {
-	const target = event.target;
-	if (target instanceof HTMLElement &&
-		(target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
-	const key = event.key.toLowerCase();
-	const directions = {
-		arrowleft: "left", a: "left",
-		arrowright: "right", d: "right",
-		arrowup: "up", w: "up",
-		arrowdown: "down", s: "down"
-	};
-	const direction = directions[key];
-	if (!direction) return;
-	if (key.startsWith("arrow")) event.preventDefault();
-	move(direction);
-});
-const render = () => {
-	make(app, App());
-	const motion = state.lastMotion;
-	state.lastMotion = null;
-	if (!motion) return;
-	const grid = app.querySelector(".grid-container");
-	if (!grid) return;
-	const tiles = [...grid.querySelectorAll(".tile")];
-	const style = getComputedStyle(grid);
-	const gapX = Number.parseFloat(style.columnGap) || 0;
-	const gapY = Number.parseFloat(style.rowGap) || gapX;
-	const firstTile = tiles[0];
-	const bounds = firstTile ? firstTile.getBoundingClientRect() : null;
-	const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-	tiles.forEach((tile, target) => {
-		if (!state.board[target]) return;
-		const label = tile.querySelector("span");
-		if (target === motion.spawnedIndex) {
-			if (!reduceMotion && label) {
-				label.animate(
-					[{ opacity: 0, transform: "scale(.35)" }, { opacity: 1, transform: "scale(1)" }],
-					{ duration: 180, easing: "ease-out" }
-				);
-			}
-			return;
-		}
-		if (motion.mergedIndexes.has(target) && !reduceMotion && label) {
-			label.animate(
-				[{ transform: "scale(1)" }, { transform: "scale(1.14)" }, { transform: "scale(1)" }],
-				{ duration: 180, easing: "ease-in-out" }
-			);
-		}
-		const source = motion.sources[target];
-		if (reduceMotion || !bounds || source === null || source === undefined || source === target) return;
-		const dx = ((source % 4) - (target % 4)) * (bounds.width + gapX);
-		const dy = (Math.floor(source / 4) - Math.floor(target / 4)) * (bounds.height + gapY);
-		if (dx || dy) {
-			tile.animate(
-				[{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0, 0)" }],
-				{ duration: 115, easing: "ease-in-out" }
-			);
-		}
-	});
-	if (motion.gained > 0 && !reduceMotion) {
-		const scoreBox = app.querySelector(".score-box");
-		if (scoreBox) {
-			scoreBox.animate(
-				[{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }],
-				{ duration: 220, easing: "ease-in-out" }
-			);
-		}
+const read = name => {
+	try {
+		return JSON.parse(localStorage.getItem(`view-2048-${name}`));
+	} catch {
+		return null;
 	}
 };
-saveGame();
-render();
+const pick = board => {
+	const open = [...board.keys()].filter(at => !board[at]);
+	return open[Math.floor(Math.random() * open.length)];
+};
+const place = (board, at) => board.map((value, index) => index === at ? (Math.random() < 0.9 ? 2 : 4) : value);
+const fresh = () => [0, 1].reduce(board => place(board, pick(board)), Array(16).fill(0));
+const clean = value => Number.isFinite(value) ? Math.max(0, value) : 0;
+const restore = () => {
+	const saved = read("game");
+	const valid = Array.isArray(saved?.board) && saved.board.length === 16 && saved.board.every(value => Number.isSafeInteger(value) && value >= 0);
+	return {
+		board: valid ? saved.board : fresh(),
+		score: valid ? clean(saved.score) : 0,
+		best: Math.max(clean(read("best")), valid ? clean(saved.best) : 0),
+		won: valid && Boolean(saved.won),
+		over: valid && Boolean(saved.over),
+		keep: valid && Boolean(saved.keep)
+	};
+};
+const save = game => {
+	try {
+		localStorage.setItem("view-2048-game", JSON.stringify(game));
+		localStorage.setItem("view-2048-best", JSON.stringify(game.best));
+	} catch {
+		// The game remains playable when browser storage is unavailable.
+	}
+	return game;
+};
+const slide = (board, direction) => {
+	const next = Array(16).fill(0);
+	const sources = Array(16).fill(null);
+	const merged = new Set();
+	let gained = 0;
+	for (let line = 0; line < 4; line++) {
+		const cells = [0, 1, 2, 3].map(step => order[direction](line, step));
+		const tiles = cells.filter(cell => board[cell]);
+		for (let at = 0, step = 0; at < tiles.length; at++, step++) {
+			const target = cells[step];
+			const value = board[tiles[at]];
+			const merge = value === board[tiles[at + 1]];
+			next[target] = merge ? value * 2 : value;
+			sources[target] = tiles[at];
+			if (merge) {
+				merged.add(target);
+				gained += value * 2;
+				at++;
+			}
+		}
+	}
+	return { board: next, sources, merged, gained };
+};
+const alive = board => board.some((value, at) => !value || value === board[at + 4] || (at % 4 < 3 && value === board[at + 1]));
+const play = ({ sources, merged, spawned, gained }) => {
+	if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+	const grid = app.querySelector(".grid-container");
+	const tiles = [...grid.children];
+	const style = getComputedStyle(grid);
+	const { width, height } = tiles[0].getBoundingClientRect();
+	const across = width + (parseFloat(style.columnGap) || 0);
+	const down = height + (parseFloat(style.rowGap) || 0);
+	tiles.forEach((tile, target) => {
+		const label = tile.querySelector("span");
+		if (!label) return;
+		if (target === spawned) {
+			label.animate([{ opacity: 0, transform: "scale(.35)" }, { opacity: 1, transform: "scale(1)" }], { duration: 180, easing: "ease-out" });
+			return;
+		}
+		if (merged.has(target)) {
+			label.animate([{ transform: "scale(1)" }, { transform: "scale(1.14)" }, { transform: "scale(1)" }], { duration: 180, easing: "ease-in-out" });
+		}
+		const source = sources[target];
+		if (source === null || source === target) return;
+		const left = ((source % 4) - (target % 4)) * across;
+		const top = (Math.floor(source / 4) - Math.floor(target / 4)) * down;
+		tile.animate([{ transform: `translate(${left}px, ${top}px)` }, { transform: "translate(0, 0)" }], { duration: 115, easing: "ease-in-out" });
+	});
+	if (gained) {
+		app.querySelector(".score-box").animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 220, easing: "ease-in-out" });
+	}
+};
+const Game = game => {
+	const { board, score, best, won, over, keep } = game;
+	const locked = over || (won && !keep);
+	const winner = won && !over;
+	let start;
+	const update = next => Game(save(next));
+	const restart = () => update({ board: fresh(), score: 0, best, won: false, over: false, keep: false });
+	const choose = ({ target }) => {
+		if (target.value === "again") return restart();
+		if (target.value === "keep") return update({ ...game, keep: true, over: !alive(board) });
+	};
+	const press = ({ isPrimary, clientX, clientY }) => {
+		if (isPrimary) start = [clientX, clientY];
+	};
+	const release = ({ clientX, clientY, currentTarget }) => {
+		if (!start) return;
+		const across = clientX - start[0];
+		const down = clientY - start[1];
+		start = null;
+		if (Math.max(Math.abs(across), Math.abs(down)) < 24) return;
+		const direction = Math.abs(across) > Math.abs(down) ? (across > 0 ? "right" : "left") : (down > 0 ? "down" : "up");
+		currentTarget.dispatchEvent(new CustomEvent("move", { detail: direction }));
+	};
+	const move = ({ detail }) => {
+		if (locked) return;
+		const { board: slid, sources, merged, gained } = slide(board, detail);
+		if (slid.every((value, at) => value === board[at])) return;
+		const spawned = pick(slid);
+		const next = place(slid, spawned);
+		const total = score + gained;
+		const win = !won && next.some(value => value >= 2048);
+		queueMicrotask(() => play({ sources, merged, spawned, gained }));
+		return update({ board: next, score: total, best: Math.max(best, total), won: won || win, over: !win && !alive(next), keep });
+	};
+	return html`
+		<div class="heading">
+			<h1>2048</h1>
+			<div class="scores" aria-label="Scores">
+				<div class="score-box"><span class="score-label">Score</span><span class="score-value">${score}</span></div>
+				<div class="score-box"><span class="score-label">Best</span><span class="score-value">${best}</span></div>
+			</div>
+		</div>
+		<div class="intro">
+			<p>Join the tiles, get to <strong>2048!</strong></p>
+			<button class="restart-button" type="button" onclick="${restart}">New Game</button>
+		</div>
+		<section class="game-container" aria-label="2048 game">
+			<div class="grid-container" role="grid" aria-label="Game board" onpointerdown="${press}" onpointerup="${release}" onmove="${move}">
+				${board.map(value => html`<div class="tile tile-${value > 2048 ? "super" : value}" role="gridcell" aria-label="${value || "Empty"}">${value ? html`<span>${value}</span>` : null}</div>`)}
+			</div>
+			<div class="game-message ${locked ? "active" : ""} ${winner ? "game-won" : "game-over"}" aria-live="polite">
+				<p>${over ? "Game over!" : "You win!"}</p>
+				<div class="lower" onclick="${choose}">
+					${winner && !keep ? html`<button type="button" value="keep">Keep going</button>` : null}
+					<button type="button" value="again">Try again</button>
+				</div>
+			</div>
+		</section>
+		<p class="sr-only" aria-live="polite">Current score: ${score}. Best score: ${best}.</p>
+	`;
+};
+document.addEventListener("keydown", event => {
+	const { target, key } = event;
+	const direction = keys[key.toLowerCase()];
+	if (!direction || target.isContentEditable || target.matches("input, textarea, select")) return;
+	if (key.startsWith("Arrow")) event.preventDefault();
+	app.querySelector(".grid-container").dispatchEvent(new CustomEvent("move", { detail: direction }));
+});
+make(app, Game(save(restore())));
 	</script>
 </body>
 </html>
