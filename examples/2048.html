@@ -35,7 +35,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; cursor: pointer; }
-a { color: #776e65; font-weight: 700; text-decoration: underline; cursor: pointer; }
 strong.important { text-transform: uppercase; }
 .page { width: 500px; max-width: calc(100vw - 40px); margin: 0 auto; }
 .heading::after, .intro::after { content: ""; display: block; clear: both; }
@@ -189,7 +188,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid #edc22e; outline-offs
 }
 .explanation { margin: 50px 0 20px; line-height: 1.65; }
 p { margin-top: 0; margin-bottom: 10px; line-height: 1.65; }
-hr { border: 0; border-bottom: 1px solid #d8d4d0; margin: 20px 0 30px; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
@@ -220,11 +218,6 @@ hr { border: 0; border-bottom: 1px solid #d8d4d0; margin: 20px 0 30px; }
 	<main class="page">
 		<div id="app"></div>
 		<p class="explanation" id="how-to-play"><strong class="important">How to play:</strong> Use your <strong>arrow keys</strong> or swipe with your fingers to move the tiles. Tiles with the same number merge into one when they touch. Add them up to reach 2048!</p>
-		<hr>
-		<p>You’re playing the original version of 2048, the popular and addictive puzzle game available to play completely free and loved by millions. Do you have what it takes to reach 2048?</p>
-		<p>Try out the official apps for <a href="https://apps.apple.com/us/app/2048-by-gabriele-cirulli/id868076805">iOS</a> and <a href="https://play.google.com/store/apps/details?id=com.gabrielecirulli.app2048">Android</a>! All other versions of this game are derivatives and should be used with caution.</p>
-		<hr>
-		<p>2048 was inspired by <a href="https://apps.apple.com/us/app/1024/id823499224">1024 by Veewo Studio</a> and is conceptually similar to <a href="https://asherv.com/threes/">Threes by Asher Vollmer</a>.</p>
 	</main>
 	<script type="module">
 import { html, make } from "../view.js";
