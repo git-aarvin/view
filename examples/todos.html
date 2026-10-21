@@ -346,203 +346,116 @@ html .clear-completed:active {
 </head>
 <body>
 	<div id="app"></div>
+	<footer class="info">
+		<p>Double-click to edit a todo</p>
+		<p>Created by Aarvin Roshin</p>
+		<p>Part of <a href="https://github.com/git-aarvin/view">View</a></p>
+	</footer>
 	<script type="module">
 import { html, make } from "../view.js";
-const storage = "todos-viewmvc";
+const key = "todos-viewmvc";
+const filters = { "": "All", active: "Active", completed: "Completed" };
 const load = () => {
 	try {
-		const saved = JSON.parse(localStorage.getItem(storage) || "[]");
-		if (!Array.isArray(saved)) return [];
-		return saved
-			.filter(todo => todo && typeof todo.title === "string")
-			.map((todo, index) => ({
-				id: Number.isFinite(Number(todo.id)) ? Number(todo.id) : index + 1,
-				title: todo.title,
-				completed: Boolean(todo.completed)
-			}));
+		return JSON.parse(localStorage.getItem(key) || "[]")
+			.filter(todo => typeof todo?.title === "string")
+			.map(({ title, completed }) => ({ title, completed: Boolean(completed) }));
 	} catch {
 		return [];
 	}
 };
-const state = {
-	todos: load(),
-	name: "",
-	editing: null,
-	draft: ""
-};
-let next = Math.max(0, ...state.todos.map(todo => todo.id)) + 1;
-const app = document.getElementById("app");
-const save = () => {
+const save = todos => {
 	try {
-		localStorage.setItem(storage, JSON.stringify(state.todos));
+		localStorage.setItem(key, JSON.stringify(todos));
 	} catch {
 		// The app remains usable if storage is unavailable.
 	}
+	return todos;
 };
 const route = () => {
-	const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
-	return hash === "active" || hash === "completed" ? hash : "all";
+	const hash = location.hash.replace(/^#\/?/, "").toLowerCase();
+	return Object.hasOwn(filters, hash) ? hash : "";
 };
-const shown = () => {
-	const selected = route();
-	if (selected === "active") return state.todos.filter(todo => !todo.completed);
-	if (selected === "completed") return state.todos.filter(todo => todo.completed);
-	return state.todos;
-};
-const render = () => make(app, App());
-const add = () => {
-	const title = state.name.trim();
-	if (!title) return;
-	state.todos.push({ id: next++, title, completed: false });
-	state.name = "";
-	save();
-	render();
-	const field = app.querySelector(".new-todo");
-	if (field) field.focus();
-};
-const submit = event => {
-	if (event.key !== "Enter") return;
-	event.preventDefault();
-	add();
-};
-const input = event => {
-	state.name = event.target.value;
-};
-const toggle = id => {
-	state.todos = state.todos.map(todo => todo.id === id
-		? { ...todo, completed: !todo.completed }
-		: todo);
-	save();
-	render();
-};
-const all = event => {
-	const completed = event.target.checked;
-	state.todos = state.todos.map(todo => ({ ...todo, completed }));
-	save();
-	render();
-};
-const remove = id => {
-	state.todos = state.todos.filter(todo => todo.id !== id);
-	if (state.editing === id) {
-		state.editing = null;
-		state.draft = "";
-	}
-	save();
-	render();
-};
-const edit = id => {
-	const item = state.todos.find(todo => todo.id === id);
-	if (!item) return;
-	state.editing = id;
-	state.draft = item.title;
-	render();
-	const field = app.querySelector(".edit");
-	if (field) {
-		field.focus();
-		field.setSelectionRange(field.value.length, field.value.length);
-	}
-};
-const commit = id => {
-	if (state.editing !== id) return;
-	const title = state.draft.trim();
-	if (!title) {
-		state.todos = state.todos.filter(todo => todo.id !== id);
-	} else {
-		state.todos = state.todos.map(todo => todo.id === id ? { ...todo, title } : todo);
-	}
-	state.editing = null;
-	state.draft = "";
-	save();
-	render();
-};
-const cancel = () => {
-	state.editing = null;
-	state.draft = "";
-	render();
-};
-const keydown = (event, id) => {
-	if (event.key === "Enter") {
-		event.preventDefault();
-		commit(id);
-	} else if (event.key === "Escape") {
-		event.preventDefault();
-		cancel();
-	}
-};
-const clear = () => {
-	const removed = new Set(state.todos.filter(todo => todo.completed).map(todo => todo.id));
-	state.todos = state.todos.filter(todo => !todo.completed);
-	if (removed.has(state.editing)) {
-		state.editing = null;
-		state.draft = "";
-	}
-	save();
-	render();
-};
-const item = ({ todo }) => {
-	const editing = state.editing === todo.id;
+const which = ({ target }) => Number(target.closest("li").dataset.index);
+const patch = (todos, index, change) => todos.map((todo, at) => at === index ? { ...todo, ...change } : todo);
+const drop = (todos, index) => todos.filter((todo, at) => at !== index);
+const Todos = ({ todos = load(), edit = null } = {}) => {
+	const filter = route();
+	const left = todos.filter(todo => !todo.completed).length;
+	const done = todos.length - left;
+	const rows = [...todos.entries()].filter(([, { completed }]) => !filter || completed === (filter === "completed"));
+	const update = list => Todos({ todos: save(list) });
+	const add = event => {
+		const title = event.target.value.trim();
+		if (event.key !== "Enter" || !title) return;
+		event.target.value = "";
+		return update([...todos, { title, completed: false }]);
+	};
+	const all = ({ target }) => update(todos.map(todo => ({ ...todo, completed: target.checked })));
+	const clear = () => update(todos.filter(todo => !todo.completed));
+	const commit = ({ target }) => {
+		const title = target.value.trim();
+		return update(title ? patch(todos, edit, { title }) : drop(todos, edit));
+	};
+	const change = event => {
+		if (event.target.matches(".toggle")) return update(patch(todos, which(event), { completed: event.target.checked }));
+	};
+	const click = event => {
+		if (event.target.matches(".destroy")) return update(drop(todos, which(event)));
+	};
+	const dblclick = event => {
+		if (!event.target.matches("label")) return;
+		const item = event.target.closest("li");
+		queueMicrotask(() => {
+			const field = item.querySelector(".edit");
+			field.focus();
+			field.setSelectionRange(field.value.length, field.value.length);
+		});
+		return Todos({ todos, edit: which(event) });
+	};
+	const keydown = event => {
+		if (!event.target.matches(".edit")) return;
+		if (event.key === "Enter") return commit(event);
+		if (event.key === "Escape") return Todos({ todos });
+	};
+	const focusout = event => {
+		if (edit !== null && event.target.matches(".edit")) return commit(event);
+	};
 	return html`
-		<li class="${todo.completed ? "completed" : ""} ${editing ? "editing" : ""}">
-			<div class="view">
-				<input class="toggle" type="checkbox" checked="${todo.completed}"
-					aria-label="Mark ${todo.title} ${todo.completed ? "active" : "completed"}"
-					onchange="${() => toggle(todo.id)}">
-				<label ondblclick="${() => edit(todo.id)}">${todo.title}</label>
-				<button class="destroy" type="button" aria-label="Delete ${todo.title}"
-					onclick="${() => remove(todo.id)}"></button>
-			</div>
-			${editing ? html`
-				<input class="edit" aria-label="Edit todo" value="${state.draft}"
-					oninput="${event => { state.draft = event.target.value; }}"
-					onkeydown="${event => keydown(event, todo.id)}"
-					onblur="${() => commit(todo.id)}">
-			` : null}
-		</li>
-	`;
-};
-const App = () => {
-	const selected = route();
-	const remaining = state.todos.filter(todo => !todo.completed).length;
-	const completed = state.todos.length - remaining;
-	const done = state.todos.length > 0 && remaining === 0;
-	const visible = shown();
-	return html`
-		<section class="todoapp" aria-label="TodoMVC">
+		<section class="todoapp" aria-label="TodoMVC" onroute="${() => Todos({ todos, edit })}">
 			<header class="header">
 				<h1>todos</h1>
-				<input id="new-todo" class="new-todo" placeholder="What needs to be done?"
-					autofocus autocomplete="off" value="${state.name}"
-					oninput="${input}" onkeydown="${submit}">
+				<input id="new-todo" class="new-todo" placeholder="What needs to be done?" autofocus autocomplete="off" onkeydown="${add}">
 			</header>
-			${state.todos.length ? html`
-				<section class="main" aria-label="Todo list">
-					<input id="toggle-all" class="toggle-all" type="checkbox" checked="${done}"
-						onchange="${all}">
-					<label class="toggle-all-label" for="toggle-all">Mark all as complete</label>
-					<ul class="todo-list">${visible.map(todo => item({ todo }))}</ul>
-				</section>
-				<footer class="footer">
-					<span class="todo-count"><strong>${remaining}</strong> ${remaining === 1 ? "item" : "items"} left</span>
-					<ul class="filters" aria-label="Filter todos">
-						<li><a href="#/" class="${selected === "all" ? "selected" : ""}" aria-current="${selected === "all" ? "page" : null}">All</a></li>
-						<li><a href="#/active" class="${selected === "active" ? "selected" : ""}" aria-current="${selected === "active" ? "page" : null}">Active</a></li>
-						<li><a href="#/completed" class="${selected === "completed" ? "selected" : ""}" aria-current="${selected === "completed" ? "page" : null}">Completed</a></li>
-					</ul>
-					${completed ? html`<button class="clear-completed" type="button" onclick="${clear}">Clear completed</button>` : null}
-				</footer>
-			` : null}
+			<section class="main" aria-label="Todo list" hidden="${!todos.length}">
+				<input id="toggle-all" class="toggle-all" type="checkbox" checked="${!left && done > 0}" onchange="${all}">
+				<label class="toggle-all-label" for="toggle-all">Mark all as complete</label>
+				<ul class="todo-list" onchange="${change}" onclick="${click}" ondblclick="${dblclick}" onkeydown="${keydown}" onfocusout="${focusout}">
+					${rows.map(([index, { title, completed }]) => html`
+						<li data-index="${index}" class="${completed ? "completed" : ""} ${edit === index ? "editing" : ""}">
+							<div class="view">
+								<input class="toggle" type="checkbox" checked="${completed}" aria-label="Mark ${title} ${completed ? "active" : "completed"}">
+								<label>${title}</label>
+								<button class="destroy" type="button" aria-label="Delete ${title}"></button>
+							</div>
+							${edit === index ? html`<input class="edit" aria-label="Edit todo" value="${title}">` : null}
+						</li>
+					`)}
+				</ul>
+			</section>
+			<footer class="footer" hidden="${!todos.length}">
+				<span class="todo-count"><strong>${left}</strong> ${left === 1 ? "item" : "items"} left</span>
+				<ul class="filters" aria-label="Filter todos">
+					${Object.entries(filters).map(([hash, label]) => html`<li><a href="#/${hash}" class="${hash === filter ? "selected" : ""}" aria-current="${hash === filter ? "page" : null}">${label}</a></li>`)}
+				</ul>
+				<button class="clear-completed" type="button" hidden="${!done}" onclick="${clear}">Clear completed</button>
+			</footer>
 		</section>
-		<footer class="info">
-			<p>Double-click to edit a todo</p>
-			<p>Created by Aarvin Roshin</p>
-			<p>Part of <a href="https://github.com/git-aarvin/view">View</a></p>
-		</footer>
 	`;
 };
-window.addEventListener("hashchange", render);
-render();
-const field = app.querySelector(".new-todo");
-if (field) field.focus();
+const app = document.getElementById("app");
+addEventListener("hashchange", () => app.querySelector(".todoapp").dispatchEvent(new Event("route")));
+make(app, Todos()).querySelector(".new-todo").focus();
 	</script>
 </body>
 </html>
