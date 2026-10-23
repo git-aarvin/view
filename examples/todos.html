@@ -1,465 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="initial-scale=1">
-		<meta name="theme-color" content="#f5f5f5">
-		<link
-			rel="icon"
-			type="image/x-icon"
-			href="https://todomvc.com/site-assets/favicon.ico"
-		>
-		<title>TodoMVC: View</title>
-		<style>
-		/* Based on todomvc-app-css 2.4.3 by Sindre Sorhus; CC BY 4.0. Source: https://github.com/tastejs/todomvc-app-css */
-		html,
-		body {
-			margin: 0;
-			padding: 0;
-		}
-		button {
-			margin: 0;
-			padding: 0;
-			border: 0;
-			background: none;
-			font-size: 100%;
-			vertical-align: baseline;
-			font-family: inherit;
-			font-weight: inherit;
-			color: inherit;
-			-webkit-appearance: none;
-			appearance: none;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-		}
-		body {
-			font: 14px 'Helvetica Neue', Helvetica, Arial, sans-serif;
-			line-height: 1.4em;
-			background: #f5f5f5;
-			color: #111111;
-			min-width: 230px;
-			max-width: 550px;
-			margin: 0 auto;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-			font-weight: 300;
-		}
-		.hidden {
-			display: none;
-		}
-		.todoapp {
-			background: #fff;
-			margin: 130px 0 40px 0;
-			position: relative;
-			box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2),
-						0 25px 50px 0 rgba(0, 0, 0, 0.1);
-		}
-		.todoapp input::-webkit-input-placeholder {
-			font-style: italic;
-			font-weight: 400;
-			color: rgba(0, 0, 0, 0.4);
-		}
-		.todoapp input::-moz-placeholder {
-			font-style: italic;
-			font-weight: 400;
-			color: rgba(0, 0, 0, 0.4);
-		}
-		.todoapp input::input-placeholder {
-			font-style: italic;
-			font-weight: 400;
-			color: rgba(0, 0, 0, 0.4);
-		}
-		.todoapp h1 {
-			position: absolute;
-			top: -140px;
-			width: 100%;
-			font-size: 80px;
-			font-weight: 200;
-			text-align: center;
-			color: #b83f45;
-			-webkit-text-rendering: optimizeLegibility;
-			-moz-text-rendering: optimizeLegibility;
-			text-rendering: optimizeLegibility;
-		}
-		.new-todo,
-		.edit {
-			position: relative;
-			margin: 0;
-			width: 100%;
-			font-size: 24px;
-			font-family: inherit;
-			font-weight: inherit;
-			line-height: 1.4em;
-			color: inherit;
-			padding: 6px;
-			border: 1px solid #999;
-			box-shadow: inset 0 -1px 5px 0 rgba(0, 0, 0, 0.2);
-			box-sizing: border-box;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-		}
-		.new-todo {
-			padding: 16px 16px 16px 60px;
-			height: 65px;
-			border: none;
-			background: rgba(0, 0, 0, 0.003);
-			box-shadow: inset 0 -2px 1px rgba(0,0,0,0.03);
-		}
-		.main {
-			position: relative;
-			z-index: 2;
-			border-top: 1px solid #e6e6e6;
-		}
-		.toggle-all {
-			width: 1px;
-			height: 1px;
-			border: none; /* Mobile Safari */
-			opacity: 0;
-			position: absolute;
-			right: 100%;
-			bottom: 100%;
-		}
-		.toggle-all + label {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			width: 45px;
-			height: 65px;
-			font-size: 0;
-			position: absolute;
-			top: -65px;
-			left: -0;
-		}
-		.toggle-all + label:before {
-			content: '❯';
-			display: inline-block;
-			font-size: 22px;
-			color: #949494;
-			padding: 10px 27px 10px 27px;
-			-webkit-transform: rotate(90deg);
-			transform: rotate(90deg);
-		}
-		.toggle-all:checked + label:before {
-			color: #484848;
-		}
-		.todo-list {
-			margin: 0;
-			padding: 0;
-			list-style: none;
-		}
-		.todo-list li {
-			position: relative;
-			font-size: 24px;
-			border-bottom: 1px solid #ededed;
-		}
-		.todo-list li:last-child {
-			border-bottom: none;
-		}
-		.todo-list li.editing {
-			border-bottom: none;
-			padding: 0;
-		}
-		.todo-list li.editing .edit {
-			display: block;
-			width: calc(100% - 43px);
-			padding: 12px 16px;
-			margin: 0 0 0 43px;
-		}
-		.todo-list li.editing .view {
-			display: none;
-		}
-		.todo-list li .toggle {
-			text-align: center;
-			width: 40px;
-			/* auto, since non-WebKit browsers doesn't support input styling */
-			height: auto;
-			position: absolute;
-			top: 0;
-			bottom: 0;
-			margin: auto 0;
-			border: none; /* Mobile Safari */
-			-webkit-appearance: none;
-			appearance: none;
-		}
-		.todo-list li .toggle {
-			opacity: 0;
-		}
-		.todo-list li .toggle + label {
-			/*
-				Firefox requires `#` to be escaped - https://bugzilla.mozilla.org/show_bug.cgi?id=922433
-				IE and Edge requires *everything* to be escaped to render, so we do that instead of just the `#` - https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/7157459/
-			*/
-			background-image: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%22-10%20-18%20100%20135%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%20fill%3D%22none%22%20stroke%3D%22%23949494%22%20stroke-width%3D%223%22/%3E%3C/svg%3E');
-			background-repeat: no-repeat;
-			background-position: center left;
-		}
-		.todo-list li .toggle:checked + label {
-			background-image: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000/svg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%22-10%20-18%20100%20135%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%20fill%3D%22none%22%20stroke%3D%22%2359A193%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20fill%3D%22%233EA390%22%20d%3D%22M72%2025L42%2071%2027%2056l-4%204%2020%2020%2034-52z%22%2F%3E%3C%2Fsvg%3E');
-		}
-		.todo-list li label {
-			overflow-wrap: break-word;
-			padding: 15px 15px 15px 60px;
-			display: block;
-			line-height: 1.2;
-			transition: color 0.4s;
-			font-weight: 400;
-			color: #484848;
-		}
-		.todo-list li.completed label {
-			color: #949494;
-			text-decoration: line-through;
-		}
-		.todo-list li .destroy {
-			display: none;
-			position: absolute;
-			top: 0;
-			right: 10px;
-			bottom: 0;
-			width: 40px;
-			height: 40px;
-			margin: auto 0;
-			font-size: 30px;
-			color: #949494;
-			transition: color 0.2s ease-out;
-		}
-		.todo-list li .destroy:hover,
-		.todo-list li .destroy:focus {
-			color: #C18585;
-		}
-		.todo-list li .destroy:after {
-			content: '×';
-			display: block;
-			height: 100%;
-			line-height: 1.1;
-		}
-		.todo-list li:hover .destroy {
-			display: block;
-		}
-		.todo-list li .edit {
-			display: none;
-		}
-		.todo-list li.editing:last-child {
-			margin-bottom: -1px;
-		}
-		.footer {
-			padding: 10px 15px;
-			height: 20px;
-			text-align: center;
-			font-size: 15px;
-			border-top: 1px solid #e6e6e6;
-		}
-		.footer:before {
-			content: '';
-			position: absolute;
-			right: 0;
-			bottom: 0;
-			left: 0;
-			height: 50px;
-			overflow: hidden;
-			box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2),
-						0 8px 0 -3px #f6f6f6,
-						0 9px 1px -3px rgba(0, 0, 0, 0.2),
-						0 16px 0 -6px #f6f6f6,
-						0 17px 2px -6px rgba(0, 0, 0, 0.2);
-		}
-		.todo-count {
-			float: left;
-			text-align: left;
-		}
-		.todo-count strong {
-			font-weight: 300;
-		}
-		.filters {
-			margin: 0;
-			padding: 0;
-			list-style: none;
-			position: absolute;
-			right: 0;
-			left: 0;
-		}
-		.filters li {
-			display: inline;
-		}
-		.filters li a {
-			color: inherit;
-			margin: 3px;
-			padding: 3px 7px;
-			text-decoration: none;
-			border: 1px solid transparent;
-			border-radius: 3px;
-		}
-		.filters li a:hover {
-			border-color: #DB7676;
-		}
-		.filters li a.selected {
-			border-color: #CE4646;
-		}
-		.clear-completed,
-		html .clear-completed:active {
-			float: right;
-			position: relative;
-			line-height: 19px;
-			text-decoration: none;
-			cursor: pointer;
-		}
-		.clear-completed:hover {
-			text-decoration: underline;
-		}
-		.info {
-			margin: 65px auto 0;
-			color: #4d4d4d;
-			font-size: 11px;
-			text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-			text-align: center;
-		}
-		.info p {
-			line-height: 1;
-		}
-		.info a {
-			color: inherit;
-			text-decoration: none;
-			font-weight: 400;
-		}
-		.info a:hover {
-			text-decoration: underline;
-		}
-		@media screen and (-webkit-min-device-pixel-ratio:0) {
-			.toggle-all,
-			.todo-list li .toggle {
-				background: none;
-			}
-			.todo-list li .toggle {
-				height: 40px;
-			}
-		}
-		@media (max-width: 430px) {
-			.footer {
-				height: 50px;
-			}
-			.filters {
-				bottom: 10px;
-			}
-		}
-		:focus,
-		.toggle:focus + label,
-		.toggle-all:focus + label {
-			box-shadow: 0 0 2px 2px #CF7D7D;
-			outline: 0;
-		}
-		</style>
-	</head>
-	<body>
-		<div id="app"></div>
-		<footer class="info">
-			<p>Double-click to edit a todo</p>
-			<p>Created by Aarvin Roshin</p>
-			<p>Part of <a href="https://github.com/git-aarvin/view">View</a></p>
-		</footer>
-		<script type="module">
-		import { html, make } from "../view.js";
-const key = "todos-viewmvc";
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todos</title>
+<style>
+body { font: 1rem system-ui, sans-serif; color: #333; background: #f5f5f5; max-width: 32rem; margin: 2rem auto; padding: 0 1rem; }
+h1 { margin: 0; font-size: 4rem; font-weight: 200; text-align: center; color: #b83f45; }
+section { background: white; box-shadow: 0 2px 8px #0003; }
+header, li, footer { display: flex; align-items: center; gap: 1rem; padding: 0 1rem; }
+[hidden] { display: none !important; }
+input { font: inherit; }
+.add, .edit { flex: 1; padding: 1rem 0; font-size: 1.5rem; border: 0; outline: 0; }
+.edit { outline: 1px solid #ccc; }
+ul { margin: 0; padding: 0; list-style: none; }
+li { font-size: 1.5rem; border-top: 1px solid #eee; }
+li label { flex: 1; padding: 1rem 0; }
+li.done label { color: #aaa; text-decoration: line-through; }
+li.editing > :not(.edit) { display: none; }
+.remove { visibility: hidden; font-size: inherit; color: #c18585; background: none; border: 0; cursor: pointer; }
+li:hover .remove { visibility: visible; }
+footer { justify-content: space-between; padding: 0.75rem 1rem; font-size: 0.9rem; border-top: 1px solid #eee; }
+footer button { font: inherit; background: none; border: 0; cursor: pointer; }
+nav a { padding: 0.2rem 0.5rem; color: inherit; text-decoration: none; border: 1px solid transparent; border-radius: 3px; }
+nav a.selected { border-color: #ce4646; }
+small { display: block; margin-top: 2rem; text-align: center; color: #777; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<small>Double-click to edit a todo. Created by Aarvin Roshin. Part of <a href="https://github.com/git-aarvin/view">View</a>.</small>
+<script type="module">
+import { html, make } from "../view.js";
+const store = "todos";
 const filters = { "": "All", active: "Active", completed: "Completed" };
-const load = () => {
-	try {
-		return JSON.parse(localStorage.getItem(key) || "[]")
-			.filter(todo => typeof todo?.title === "string")
-			.map(({ title, completed }) => ({ title, completed: Boolean(completed) }));
-	} catch {
-		return [];
-	}
-};
-const save = todos => {
-	try {
-		localStorage.setItem(key, JSON.stringify(todos));
-	} catch {
-		// The app remains usable if storage is unavailable.
-	}
-	return todos;
-};
-const route = () => {
-	const hash = location.hash.replace(/^#\/?/, "").toLowerCase();
-	return Object.hasOwn(filters, hash) ? hash : "";
-};
-const which = ({ target }) => Number(target.closest("li").dataset.index);
-const patch = (todos, index, change) => todos.map((todo, at) => at === index ? { ...todo, ...change } : todo);
-const drop = (todos, index) => todos.filter((todo, at) => at !== index);
-const Todos = ({ todos = load(), edit = null } = {}) => {
-	const filter = route();
+const which = event => +event.target.closest("li").dataset.index;
+const Todos = ({ todos = JSON.parse(localStorage[store] ?? "[]"), edit = -1 } = {}) => {
+	const hash = location.hash.slice(2);
+	const filter = hash in filters ? hash : "";
 	const left = todos.filter(todo => !todo.completed).length;
-	const done = todos.length - left;
-	const rows = [...todos.entries()].filter(([, { completed }]) => !filter || completed === (filter === "completed"));
-	const update = list => Todos({ todos: save(list) });
+	const save = list => (localStorage[store] = JSON.stringify(list), Todos({ todos: list }));
+	const patch = (index, fields) => save(todos.map((todo, at) => at === index ? { ...todo, ...fields } : todo));
+	const drop = index => save(todos.filter((todo, at) => at !== index));
+	const commit = event => {
+		const title = event.target.value.trim();
+		return title ? patch(edit, { title }) : drop(edit);
+	};
 	const add = event => {
 		const title = event.target.value.trim();
 		if (event.key !== "Enter" || !title) return;
 		event.target.value = "";
-		return update([...todos, { title, completed: false }]);
+		return save([...todos, { title, completed: false }]);
 	};
-	const all = ({ target }) => update(todos.map(todo => ({ ...todo, completed: target.checked })));
-	const clear = () => update(todos.filter(todo => !todo.completed));
-	const commit = ({ target }) => {
-		const title = target.value.trim();
-		return update(title ? patch(todos, edit, { title }) : drop(todos, edit));
-	};
-	const change = event => {
-		if (event.target.matches(".toggle")) return update(patch(todos, which(event), { completed: event.target.checked }));
-	};
-	const click = event => {
-		if (event.target.matches(".destroy")) return update(drop(todos, which(event)));
-	};
-	const dblclick = event => {
+	const all = event => save(todos.map(todo => ({ ...todo, completed: event.target.checked })));
+	const clear = () => save(todos.filter(todo => !todo.completed));
+	const toggle = event => event.target.matches(".toggle") && patch(which(event), { completed: event.target.checked });
+	const remove = event => event.target.matches(".remove") && drop(which(event));
+	const begin = event => {
 		if (!event.target.matches("label")) return;
 		const item = event.target.closest("li");
 		queueMicrotask(() => {
-			const field = item.querySelector(".edit");
-			field.focus();
-			field.setSelectionRange(field.value.length, field.value.length);
+			const input = item.querySelector(".edit");
+			input.focus();
+			input.setSelectionRange(input.value.length, input.value.length);
 		});
 		return Todos({ todos, edit: which(event) });
 	};
-	const keydown = event => {
+	const press = event => {
 		if (!event.target.matches(".edit")) return;
 		if (event.key === "Enter") return commit(event);
 		if (event.key === "Escape") return Todos({ todos });
 	};
-	const focusout = event => {
-		if (edit !== null && event.target.matches(".edit")) return commit(event);
-	};
+	const leave = event => edit >= 0 && event.target.matches(".edit") ? commit(event) : undefined;
 	return html`
-		<section class="todoapp" aria-label="TodoMVC" on:route="${() => Todos({ todos, edit })}">
-			<header class="header">
-				<h1>todos</h1>
-				<input id="new-todo" class="new-todo" placeholder="What needs to be done?" autofocus autocomplete="off" onkeydown="${add}">
+		<section on:route="${() => Todos({ todos, edit })}">
+			<header>
+				<input class="all" type="checkbox" aria-label="Toggle all" checked="${!left}" hidden="${!todos.length}" onchange="${all}">
+				<input class="add" placeholder="What needs to be done?" autocomplete="off" onkeydown="${add}">
 			</header>
-			<section class="main" aria-label="Todo list" hidden="${!todos.length}">
-				<input id="toggle-all" class="toggle-all" type="checkbox" checked="${!left && done > 0}" onchange="${all}">
-				<label class="toggle-all-label" for="toggle-all">Mark all as complete</label>
-				<ul class="todo-list" onchange="${change}" onclick="${click}" ondblclick="${dblclick}" onkeydown="${keydown}" onfocusout="${focusout}">
-					${rows.map(([index, { title, completed }]) => html`
-						<li data-index="${index}" class="${completed ? "completed" : ""} ${edit === index ? "editing" : ""}">
-							<div class="view">
-								<input class="toggle" type="checkbox" checked="${completed}" aria-label="Mark ${title} ${completed ? "active" : "completed"}">
-								<label>${title}</label>
-								<button class="destroy" type="button" aria-label="Delete ${title}"></button>
-							</div>
-							${edit === index ? html`<input class="edit" aria-label="Edit todo" value="${title}">` : null}
-						</li>
-					`)}
-				</ul>
-			</section>
-			<footer class="footer" hidden="${!todos.length}">
-				<span class="todo-count"><strong>${left}</strong> ${left === 1 ? "item" : "items"} left</span>
-				<ul class="filters" aria-label="Filter todos">
-					${Object.entries(filters).map(([hash, label]) => html`<li><a href="#/${hash}" class="${hash === filter ? "selected" : ""}" aria-current="${hash === filter ? "page" : null}">${label}</a></li>`)}
-				</ul>
-				<button class="clear-completed" type="button" hidden="${!done}" onclick="${clear}">Clear completed</button>
+			<ul onchange="${toggle}" onclick="${remove}" ondblclick="${begin}" onkeydown="${press}" onfocusout="${leave}">
+				${todos.map((todo, index) => (!filter || todo.completed === (filter === "completed")) && html`
+					<li data-index="${index}" class="${todo.completed ? "done" : ""} ${edit === index ? "editing" : ""}">
+						<input class="toggle" type="checkbox" checked="${todo.completed}" aria-label="Toggle ${todo.title}">
+						<label>${todo.title}</label>
+						<button class="remove" aria-label="Delete ${todo.title}">×</button>
+						${edit === index && html`<input class="edit" aria-label="Edit" value="${todo.title}">`}
+					</li>
+				`)}
+			</ul>
+			<footer hidden="${!todos.length}">
+				<span>${left} ${left === 1 ? "item" : "items"} left</span>
+				<nav>
+					${Object.entries(filters).map(([key, label]) => html`<a href="#/${key}" class="${key === filter ? "selected" : ""}">${label}</a>`)}
+				</nav>
+				<button hidden="${left === todos.length}" onclick="${clear}">Clear completed</button>
 			</footer>
 		</section>
 	`;
 };
 const app = document.getElementById("app");
-addEventListener("hashchange", () => app.querySelector(".todoapp").dispatchEvent(new Event("route")));
-make(app, Todos()).querySelector(".new-todo").focus();
-		</script>
-	</body>
+addEventListener("hashchange", () => app.firstElementChild.dispatchEvent(new Event("route")));
+make(app, Todos()).querySelector(".add").focus();
+</script>
+</body>
 </html>
