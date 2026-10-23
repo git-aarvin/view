@@ -1,156 +1,388 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2048</title>
-<style>
-body { margin: 0; font: 1.1rem system-ui, sans-serif; color: #776e65; background: #faf8ef; }
-main { max-width: 30rem; margin: 2rem auto; padding: 0 1rem; }
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-h1 { flex: 1; margin: 0; font-size: 3.5rem; }
-header p { margin: 0; padding: 0.4rem 0.8rem; font-size: 0.8rem; text-align: center; text-transform: uppercase; color: #eee4da; background: #bbada0; border-radius: 3px; }
-b { display: block; font-size: 1.4rem; color: white; }
-button { font: inherit; font-weight: 700; padding: 0.6rem 1rem; color: #f9f6f2; background: #8f7a66; border: 0; border-radius: 3px; cursor: pointer; }
-section { position: relative; margin-top: 1rem; }
-.board { display: grid; grid-template: repeat(4, 1fr) / repeat(4, 1fr); gap: 0.6rem; aspect-ratio: 1; padding: 0.6rem; container-type: inline-size; touch-action: none; user-select: none; background: #bbada0; border-radius: 6px; }
-.tile { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; font-size: 8cqw; font-weight: 700; color: #f9f6f2; background: #3c3a32; border-radius: 3px; }
-[data-value="0"] { background: #cdc1b4; }
-[data-value="2"] { color: #776e65; background: #eee4da; }
-[data-value="4"] { color: #776e65; background: #ede0c8; }
-[data-value="8"] { background: #f2b179; }
-[data-value="16"] { background: #f59563; }
-[data-value="32"] { background: #f67c5f; }
-[data-value="64"] { background: #f65e3b; }
-[data-value="128"] { background: #edcf72; }
-[data-value="256"] { background: #edcc61; }
-[data-value="512"] { background: #edc850; }
-[data-value="1024"] { background: #edc53f; }
-[data-value="2048"] { background: #edc22e; }
-.message { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; font-size: 3rem; font-weight: 700; background: #eee4da99; border-radius: 6px; }
-.message p { margin: 0; }
-.message div { display: flex; gap: 0.5rem; font-size: 1.1rem; }
-</style>
-</head>
-<body>
-<main>
-<div id="app"></div>
-<p>Use the arrow keys or swipe to move the tiles. Tiles with the same number merge when they touch. Reach 2048!</p>
-</main>
-<script type="module">
-import { html, make } from "../view.js";
-const app = document.getElementById("app");
-const keys = { arrowleft: "left", arrowright: "right", arrowup: "up", arrowdown: "down", a: "left", d: "right", w: "up", s: "down" };
-const order = {
-	left: (line, step) => line * 4 + step,
-	right: (line, step) => line * 4 + 3 - step,
-	up: (line, step) => step * 4 + line,
-	down: (line, step) => (3 - step) * 4 + line,
-};
-const pick = board => {
-	const open = [...board.keys()].filter(index => !board[index]);
-	return open[Math.floor(Math.random() * open.length)];
-};
-const place = (board, at) => board.map((value, index) => index === at ? (Math.random() < 0.9 ? 2 : 4) : value);
-const fresh = () => [0, 1].reduce(board => place(board, pick(board)), Array(16).fill(0));
-const alive = board => board.some((value, index) => !value || value === board[index + 4] || (index % 4 < 3 && value === board[index + 1]));
-const slide = (board, direction) => {
-	const next = Array(16).fill(0);
-	const origin = Array(16).fill(-1);
-	const merged = new Set();
-	let gained = 0;
-	for (let line = 0; line < 4; line++) {
-		const cells = [0, 1, 2, 3].map(step => order[direction](line, step));
-		const tiles = cells.filter(cell => board[cell]);
-		for (let at = 0, step = 0; at < tiles.length; at++, step++) {
-			const target = cells[step];
-			const value = board[tiles[at]];
-			const merge = value === board[tiles[at + 1]];
-			next[target] = merge ? value * 2 : value;
-			origin[target] = tiles[at];
-			if (merge) merged.add(target), gained += value * 2, at++;
-		}
-	}
-	return { board: next, origin, merged, gained };
-};
-const play = ({ origin, merged, spawned }) => {
-	if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-	const board = app.querySelector(".board");
-	const { width, height } = board.firstElementChild.getBoundingClientRect();
-	const { columnGap, rowGap } = getComputedStyle(board);
-	const across = width + parseFloat(columnGap);
-	const down = height + parseFloat(rowGap);
-	const animate = (element, frames, duration) => element.animate(frames, { duration, easing: "ease-in-out" });
-	[...board.children].forEach((tile, target) => {
-		const label = tile.querySelector("span");
-		if (!label) return;
-		if (target === spawned) return animate(label, [{ opacity: 0, transform: "scale(.35)" }, { opacity: 1, transform: "scale(1)" }], 180);
-		if (merged.has(target)) animate(label, [{ transform: "scale(1)" }, { transform: "scale(1.14)" }, { transform: "scale(1)" }], 180);
-		const from = origin[target];
-		if (from !== target) animate(tile, [{ transform: `translate(${(from % 4 - target % 4) * across}px, ${(Math.floor(from / 4) - Math.floor(target / 4)) * down}px)` }, { transform: "translate(0, 0)" }], 115);
-	});
-};
-let start;
-const Game = game => {
-	const { board, score, best, won, over, keep } = game;
-	const locked = over || (won && !keep);
-	const save = next => (localStorage.game = JSON.stringify(next), Game(next));
-	const restart = () => save({ board: fresh(), score: 0, best, won: false, over: false, keep: false });
-	const move = ({ detail }) => {
-		if (locked) return;
-		const moved = slide(board, detail);
-		if (moved.board.every((value, index) => value === board[index])) return;
-		const spawned = pick(moved.board);
-		const next = place(moved.board, spawned);
-		const total = score + moved.gained;
-		const reached = !won && next.some(value => value >= 2048);
-		queueMicrotask(() => play({ ...moved, spawned }));
-		return save({ board: next, score: total, best: Math.max(best, total), won: won || reached, over: !reached && !alive(next), keep });
-	};
-	const choose = ({ target }) => {
-		if (target.value === "again") return restart();
-		if (target.value === "keep") return save({ ...game, keep: true, over: !alive(board) });
-	};
-	const press = event => void (start = [event.clientX, event.clientY]);
-	const release = event => {
-		if (!start) return;
-		const across = event.clientX - start[0];
-		const down = event.clientY - start[1];
-		start = null;
-		if (Math.max(Math.abs(across), Math.abs(down)) < 24) return;
-		const direction = Math.abs(across) > Math.abs(down) ? (across > 0 ? "right" : "left") : (down > 0 ? "down" : "up");
-		event.currentTarget.dispatchEvent(new CustomEvent("move", { detail: direction }));
-	};
-	return html`
-		<header>
-			<h1>2048</h1>
-			<p>Score <b>${score}</b></p>
-			<p>Best <b>${best}</b></p>
-			<button onclick="${restart}">New game</button>
-		</header>
-		<section>
-			<div class="board" onpointerdown="${press}" onpointerup="${release}" on:move="${move}">
-				${board.map(value => html`<div class="tile" data-value="${value}">${value ? html`<span>${value}</span>` : null}</div>`)}
-			</div>
-			${locked && html`
-				<div class="message" onclick="${choose}">
-					<p>${over ? "Game over!" : "You win!"}</p>
-					<div>
-						${!over && html`<button value="keep">Keep going</button>`}
-						<button value="again">Try again</button>
-					</div>
-				</div>
-			`}
-		</section>
-	`;
-};
-document.addEventListener("keydown", event => {
-	const direction = keys[event.key.toLowerCase()];
-	if (!direction || event.target.matches("input, textarea, select")) return;
-	if (event.key.startsWith("Arrow")) event.preventDefault();
-	app.querySelector(".board").dispatchEvent(new CustomEvent("move", { detail: direction }));
-});
-make(app, Game(JSON.parse(localStorage.game ?? "null") ?? { board: fresh(), score: 0, best: 0, won: false, over: false, keep: false }));
-</script>
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1"
+		/>
+		<title>2048</title>
+		<style>
+			body {
+				margin: 0;
+				font:
+					1.1rem system-ui,
+					sans-serif;
+				color: #776e65;
+				background: #faf8ef;
+			}
+			main {
+				max-width: 30rem;
+				margin: 2rem auto;
+				padding: 0 1rem;
+			}
+			header {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 0.5rem;
+			}
+			h1 {
+				flex: 1;
+				margin: 0;
+				font-size: 3.5rem;
+			}
+			header p {
+				margin: 0;
+				padding: 0.4rem 0.8rem;
+				font-size: 0.8rem;
+				text-align: center;
+				text-transform: uppercase;
+				color: #eee4da;
+				background: #bbada0;
+				border-radius: 3px;
+			}
+			b {
+				display: block;
+				font-size: 1.4rem;
+				color: white;
+			}
+			button {
+				font: inherit;
+				font-weight: 700;
+				padding: 0.6rem 1rem;
+				color: #f9f6f2;
+				background: #8f7a66;
+				border: 0;
+				border-radius: 3px;
+				cursor: pointer;
+			}
+			section {
+				position: relative;
+				margin-top: 1rem;
+			}
+			.board {
+				display: grid;
+				grid-template: repeat(4, 1fr) / repeat(4, 1fr);
+				gap: 0.6rem;
+				aspect-ratio: 1;
+				padding: 0.6rem;
+				container-type: inline-size;
+				touch-action: none;
+				user-select: none;
+				background: #bbada0;
+				border-radius: 6px;
+			}
+			.tile {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-width: 0;
+				overflow: hidden;
+				font-size: 8cqw;
+				font-weight: 700;
+				color: #f9f6f2;
+				background: #3c3a32;
+				border-radius: 3px;
+			}
+			[data-value="0"] {
+				background: #cdc1b4;
+			}
+			[data-value="2"] {
+				color: #776e65;
+				background: #eee4da;
+			}
+			[data-value="4"] {
+				color: #776e65;
+				background: #ede0c8;
+			}
+			[data-value="8"] {
+				background: #f2b179;
+			}
+			[data-value="16"] {
+				background: #f59563;
+			}
+			[data-value="32"] {
+				background: #f67c5f;
+			}
+			[data-value="64"] {
+				background: #f65e3b;
+			}
+			[data-value="128"] {
+				background: #edcf72;
+			}
+			[data-value="256"] {
+				background: #edcc61;
+			}
+			[data-value="512"] {
+				background: #edc850;
+			}
+			[data-value="1024"] {
+				background: #edc53f;
+			}
+			[data-value="2048"] {
+				background: #edc22e;
+			}
+			.message {
+				position: absolute;
+				inset: 0;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 1rem;
+				font-size: 3rem;
+				font-weight: 700;
+				background: #eee4da99;
+				border-radius: 6px;
+			}
+			.message p {
+				margin: 0;
+			}
+			.message div {
+				display: flex;
+				gap: 0.5rem;
+				font-size: 1.1rem;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<div id="app"></div>
+			<p>
+				Use the arrow keys or swipe to move the tiles. Tiles with the
+				same number merge when they touch. Reach 2048!
+			</p>
+		</main>
+		<script type="module">
+			import { html, make } from "../view.js";
+			const app = document.getElementById("app");
+			const keys = {
+				arrowleft: "left",
+				arrowright: "right",
+				arrowup: "up",
+				arrowdown: "down",
+				a: "left",
+				d: "right",
+				w: "up",
+				s: "down",
+			};
+			const order = {
+				left: (line, step) => line * 4 + step,
+				right: (line, step) => line * 4 + 3 - step,
+				up: (line, step) => step * 4 + line,
+				down: (line, step) => (3 - step) * 4 + line,
+			};
+			const pick = (board) => {
+				const open = [...board.keys()].filter((index) => !board[index]);
+				return open[Math.floor(Math.random() * open.length)];
+			};
+			const place = (board, at) =>
+				board.map((value, index) =>
+					index === at ? (Math.random() < 0.9 ? 2 : 4) : value,
+				);
+			const fresh = () =>
+				[0, 1].reduce(
+					(board) => place(board, pick(board)),
+					Array(16).fill(0),
+				);
+			const alive = (board) =>
+				board.some(
+					(value, index) =>
+						!value ||
+						value === board[index + 4] ||
+						(index % 4 < 3 && value === board[index + 1]),
+				);
+			const slide = (board, direction) => {
+				const next = Array(16).fill(0);
+				const origin = Array(16).fill(-1);
+				const merged = new Set();
+				let gained = 0;
+				for (let line = 0; line < 4; line++) {
+					const cells = [0, 1, 2, 3].map((step) =>
+						order[direction](line, step),
+					);
+					const tiles = cells.filter((cell) => board[cell]);
+					for (let at = 0, step = 0; at < tiles.length; at++, step++) {
+						const target = cells[step];
+						const value = board[tiles[at]];
+						const merge = value === board[tiles[at + 1]];
+						next[target] = merge ? value * 2 : value;
+						origin[target] = tiles[at];
+						if (merge)
+							(merged.add(target), (gained += value * 2), at++);
+					}
+				}
+				return { board: next, origin, merged, gained };
+			};
+			const play = ({ origin, merged, spawned }) => {
+				if (matchMedia("(prefers-reduced-motion: reduce)").matches)
+					return;
+				const board = app.querySelector(".board");
+				const { width, height } =
+					board.firstElementChild.getBoundingClientRect();
+				const { columnGap, rowGap } = getComputedStyle(board);
+				const across = width + parseFloat(columnGap);
+				const down = height + parseFloat(rowGap);
+				const animate = (element, frames, duration) =>
+					element.animate(frames, { duration, easing: "ease-in-out" });
+				[...board.children].forEach((tile, target) => {
+					const label = tile.querySelector("span");
+					if (!label) return;
+					if (target === spawned)
+						return animate(
+							label,
+							[
+								{ opacity: 0, transform: "scale(.35)" },
+								{ opacity: 1, transform: "scale(1)" },
+							],
+							180,
+						);
+					if (merged.has(target))
+						animate(
+							label,
+							[
+								{ transform: "scale(1)" },
+								{ transform: "scale(1.14)" },
+								{ transform: "scale(1)" },
+							],
+							180,
+						);
+					const from = origin[target];
+					if (from !== target)
+						animate(
+							tile,
+							[
+								{
+									transform: `translate(${((from % 4) - (target % 4)) * across}px, ${(Math.floor(from / 4) - Math.floor(target / 4)) * down}px)`,
+								},
+								{ transform: "translate(0, 0)" },
+							],
+							115,
+						);
+				});
+			};
+			let start;
+			const Game = (game) => {
+				const { board, score, best, won, over, keep } = game;
+				const locked = over || (won && !keep);
+				const save = (next) => (
+					(localStorage.game = JSON.stringify(next)),
+					Game(next)
+				);
+				const restart = () =>
+					save({
+						board: fresh(),
+						score: 0,
+						best,
+						won: false,
+						over: false,
+						keep: false,
+					});
+				const move = ({ detail }) => {
+					if (locked) return;
+					const moved = slide(board, detail);
+					if (
+						moved.board.every((value, index) => value === board[index])
+					)
+						return;
+					const spawned = pick(moved.board);
+					const next = place(moved.board, spawned);
+					const total = score + moved.gained;
+					const reached = !won && next.some((value) => value >= 2048);
+					queueMicrotask(() => play({ ...moved, spawned }));
+					return save({
+						board: next,
+						score: total,
+						best: Math.max(best, total),
+						won: won || reached,
+						over: !reached && !alive(next),
+						keep,
+					});
+				};
+				const choose = ({ target }) => {
+					if (target.value === "again") return restart();
+					if (target.value === "keep")
+						return save({ ...game, keep: true, over: !alive(board) });
+				};
+				const press = (event) =>
+					void (start = [event.clientX, event.clientY]);
+				const release = (event) => {
+					if (!start) return;
+					const across = event.clientX - start[0];
+					const down = event.clientY - start[1];
+					start = null;
+					if (Math.max(Math.abs(across), Math.abs(down)) < 24) return;
+					const direction =
+						Math.abs(across) > Math.abs(down)
+							? across > 0
+								? "right"
+								: "left"
+							: down > 0
+								? "down"
+								: "up";
+					event.currentTarget.dispatchEvent(
+						new CustomEvent("move", { detail: direction }),
+					);
+				};
+				return html`
+					<header>
+						<h1>2048</h1>
+						<p>Score <b>${score}</b></p>
+						<p>Best <b>${best}</b></p>
+						<button onclick="${restart}">New game</button>
+					</header>
+					<section>
+						<div
+							class="board"
+							onpointerdown="${press}"
+							onpointerup="${release}"
+							on:move="${move}"
+						>
+							${board.map((value) => html`<div class="tile" data-value="${value}">${value ? html`<span>${value}</span>` : null}</div>`)}
+						</div>
+						${
+							locked &&
+							html`
+								<div class="message" onclick="${choose}">
+									<p>${over ? "Game over!" : "You win!"}</p>
+									<div>
+										${!over && html`<button value="keep">Keep going</button>`}
+										<button value="again">Try again</button>
+									</div>
+								</div>
+							`
+						}
+					</section>
+				`;
+			};
+			document.addEventListener("keydown", (event) => {
+				const direction = keys[event.key.toLowerCase()];
+				if (
+					!direction ||
+					event.target.matches("input, textarea, select")
+				)
+					return;
+				if (event.key.startsWith("Arrow")) event.preventDefault();
+				app
+					.querySelector(".board")
+					.dispatchEvent(
+						new CustomEvent("move", { detail: direction }),
+					);
+			});
+			make(
+				app,
+				Game(
+					JSON.parse(localStorage.game ?? "null") ?? {
+						board: fresh(),
+						score: 0,
+						best: 0,
+						won: false,
+						over: false,
+						keep: false,
+					},
+				),
+			);
+		</script>
+	</body>
 </html>
