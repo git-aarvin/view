@@ -2,14 +2,28 @@ const views = new WeakSet();
 const roots = new WeakMap();
 const cache = new WeakMap();
 const live = new Set(["value", "checked", "selected"]);
+const unsafe = new Set(["srcdoc"]);
 const raw = new Set([
-	"script", "style", "textarea", "title", "xmp", "iframe",
-	"noembed", "noframes", "plaintext", "noscript",
+	"script",
+	"style",
+	"textarea",
+	"title",
+	"xmp",
+	"iframe",
+	"noembed",
+	"noframes",
+	"plaintext",
+	"noscript",
 ]);
 const CONTENT = Symbol("content");
+const WAIT = Symbol("wait");
 const key = `x${Math.random().toString(36).slice(2) || "0"}`;
 const find = new RegExp(`${key}t(\\d+);`, "g");
 const exact = new RegExp(`^${key}(\\d+);$`);
+const report = error =>
+	queueMicrotask(() => {
+		throw error;
+	});
 const html = (strings, ...values) => {
 	const view = Object.freeze({ strings, values });
 	views.add(view);
@@ -55,18 +69,24 @@ const scan = (node, path) => {
 		if (kid.nodeType === 1) {
 			[...kid.attributes]
 				.filter(({ value }) => value.includes(key))
-				.forEach(({ name, value }) => {
-					kid.removeAttribute(name);
+				.forEach(({ name, value, namespaceURI, localName }) => {
+					if (namespaceURI) {
+						kid.removeAttributeNS(namespaceURI, localName);
+					} else kid.removeAttribute(name);
 					parts.push({
 						kind: "attribute",
 						path: [...path, at],
 						name,
+						namespace: namespaceURI,
+						local: localName,
 						chunks: value.split(find),
 					});
 				});
-			parts.push(...(kid.content?.nodeType === 11
-				? scan(kid.content, [...path, at, CONTENT])
-				: scan(kid, [...path, at])));
+			parts.push(
+				...(kid.content?.nodeType === 11
+					? scan(kid.content, [...path, at, CONTENT])
+					: scan(kid, [...path, at])),
+			);
 		}
 		at++;
 	}
@@ -101,7 +121,9 @@ const forms = strings => {
 					);
 				}
 				list.push("comment");
-			} else if (mode === "comment" || mode === "raw" || mode === "value") {
+			} else if (
+				mode === "comment" || mode === "raw" || mode === "value"
+			) {
 				list.push("text");
 			} else if (mode === "beforeValue") {
 				list.push("text");
@@ -118,13 +140,22 @@ const forms = strings => {
 			const char = source[at];
 			if (mode === "data") {
 				if (char !== "<") continue;
-				if (source.startsWith("<!--", at)) {
+				if (source.startsWith("<!-->", at)) {
+					at += 4;
+				} else if (source.startsWith("<!--->", at)) {
+					at += 5;
+				} else if (source.startsWith("<!--", at)) {
 					mode = "comment";
 					at += 3;
-				} else if (source.startsWith("<!", at) || source.startsWith("<?", at)) {
+				} else if (
+					source.startsWith("<!", at) || source.startsWith("<?", at)
+				) {
 					mode = "bogus";
 					at += 1;
-				} else if (source.startsWith("</", at) && /[a-z]/i.test(source[at + 2] ?? "")) {
+				} else if (
+					source.startsWith("</", at)
+					&& /[a-z]/i.test(source[at + 2] ?? "")
+				) {
 					mode = "tagName";
 					closing = true;
 					tag = "";
@@ -182,7 +213,7 @@ const forms = strings => {
 			}
 			if (mode === "beforeValue") {
 				if (/[\t\n\f\r ]/.test(char)) continue;
-				if (char === '"' || char === "'") {
+				if (char === "\"" || char === "'") {
 					mode = "value";
 					quote = char;
 				} else if (char === ">") {
@@ -211,6 +242,9 @@ const forms = strings => {
 				if (char === "-" && source.startsWith("-->", at)) {
 					mode = "data";
 					at += 2;
+				} else if (char === "-" && source.startsWith("--!>", at)) {
+					mode = "data";
+					at += 3;
 				}
 				continue;
 			}
@@ -218,10 +252,17 @@ const forms = strings => {
 				if (char === ">") mode = "data";
 				continue;
 			}
-			if (mode === "raw" && rawTag !== "plaintext" && char === "<" && source[at + 1] === "/") {
-				const name = source.slice(at + 2, at + 2 + rawTag.length).toLowerCase();
+			if (
+				mode === "raw" && rawTag !== "plaintext" && char === "<"
+				&& source[at + 1] === "/"
+			) {
+				const name = source.slice(at + 2, at + 2 + rawTag.length)
+					.toLowerCase();
 				const after = source[at + 2 + rawTag.length];
-				if (name === rawTag && (after === undefined || /[ \t\n\f\r/>]/.test(after))) {
+				if (
+					name === rawTag
+					&& (after === undefined || /[ \t\n\f\r/>]/.test(after))
+				) {
 					const end = source.indexOf(">", at + 2 + rawTag.length);
 					if (end < 0) {
 						at = source.length;
@@ -278,61 +319,118 @@ const release = slot => {
 	}
 	slot.held = null;
 };
+const syncTextarea = slot => {
+	const parent = slot.anchor.parentNode;
+	if (parent?.localName !== "textarea") return;
+	const text = parent.textContent;
+	if (parent.value !== text) parent.value = text;
+};
+const touch = slot => {
+	syncTextarea(slot);
+	if (slot.owner?.refresh) slot.owner.refresh();
+};
 const fill = (slot, value) => {
 	if (typeof value?.then === "function") {
 		const token = { pending: true };
 		release(slot);
 		slot.held = token;
+		touch(slot);
 		Promise.resolve(value).then(
 			next => {
 				if (slot.held === token) fill(slot, next);
 			},
-			error => {
-				if (slot.held === token) queueMicrotask(() => { throw error; });
-			},
-		).catch(error => queueMicrotask(() => { throw error; }));
+			report,
+		).catch(report);
 		return;
 	}
 	slot.held = place(slot, value);
+	touch(slot);
 };
 const land = (owner, out) => {
+	if (out === undefined || typeof out === "boolean") return;
 	const token = ++owner.version;
-	const fail = error => {
-		if (owner.version === token && owner.slot.held === owner) {
-			queueMicrotask(() => { throw error; });
-		}
-	};
 	const settle = value => {
 		if (owner.version !== token) return;
 		if (typeof value?.then === "function") {
-			Promise.resolve(value).then(settle).catch(fail);
-		} else if (value !== undefined && owner.slot.held === owner) {
+			Promise.resolve(value).then(settle).catch(report);
+		} else if (
+			value !== undefined
+			&& typeof value !== "boolean"
+			&& owner.slot.held === owner
+		) {
 			fill(owner.slot, value);
 		}
 	};
 	settle(out);
 };
-const attribute = (element, { name, chunks }, owner) => {
-	const event = name.startsWith("on") ? name.slice(2).toLowerCase() : "";
-	const standard = event && name in element;
+const compose = (chunks, values) => {
+	const waits = [];
+	const parts = chunks.map((bit, index) => {
+		if (!(index % 2)) return bit;
+		const value = values[bit];
+		if (typeof value?.then !== "function") {
+			return value == null ? "" : String(value);
+		}
+		const part = { [WAIT]: waits.length };
+		waits.push(Promise.resolve(value));
+		return part;
+	});
+	if (!waits.length) return parts.join("");
+	return Promise.all(waits).then(done =>
+		parts
+			.map(part =>
+				part?.[WAIT] === undefined
+					? part
+					: String(done[part[WAIT]] ?? "")
+			)
+			.join("")
+	);
+};
+const attribute = (
+	element,
+	{ name, namespace, local, chunks },
+	owner,
+) => {
+	const custom = name.startsWith("on:") ? name.slice(3) : "";
+	const standard = !custom && name.startsWith("on") && name in element
+		? name.slice(2).toLowerCase()
+		: "";
+	const event = custom || standard;
 	const solo = chunks.length === 3 && chunks[0] === ""
 		&& chunks[2] === "";
-	if (standard && !solo) {
-		throw new SyntaxError("Event attributes must contain exactly one interpolation");
+	const after = name === "value" && element.localName === "select";
+	if (unsafe.has(name.toLowerCase())) {
+		throw new SyntaxError(
+			"Dynamic srcdoc attributes are not supported",
+		);
 	}
+	if (event && !solo) {
+		throw new SyntaxError(
+			"Event attributes must contain exactly one interpolation",
+		);
+	}
+	const set = value =>
+		namespace
+			? element.setAttributeNS(namespace, name, value)
+			: element.setAttribute(name, value);
+	const remove = () =>
+		namespace
+			? element.removeAttributeNS(namespace, local)
+			: element.removeAttribute(name);
 	let previous;
 	let handler;
 	let listener;
-	const apply = values => {
-		const next = solo
-			? values[chunks[1]]
-			: chunks.map((bit, index) => index % 2 ? values[bit] ?? "" : bit)
-				.join("");
+	let token = 0;
+	const applyValue = next => {
 		if (event && typeof next === "function") {
 			handler = next;
 			if (!listener) {
-				element.removeAttribute(name);
-				listener = event => land(owner, handler?.call(element, event));
+				remove();
+				listener = event => {
+					const out = handler?.call(element, event);
+					if (out === false) event.preventDefault();
+					land(owner, typeof out === "boolean" ? undefined : out);
+				};
 				element.addEventListener(event, listener);
 			}
 			previous = next;
@@ -343,9 +441,15 @@ const attribute = (element, { name, chunks }, owner) => {
 			listener = null;
 			handler = null;
 		}
+		if (event) {
+			remove();
+			return;
+		}
 		const present = next != null && next !== false;
 		const property = live.has(name) && name in element;
-		const active = property && name !== "value"
+		const active = name === "value"
+			? next != null
+			: property
 			? Boolean(next)
 			: present;
 		if (property) {
@@ -358,48 +462,111 @@ const attribute = (element, { name, chunks }, owner) => {
 				element[name] = active;
 			}
 		}
-		if (next === previous) return;
-		previous = next;
-		if (!active || standard) element.removeAttribute(name);
-		else if (name === "value") element.setAttribute(name, String(next));
-		else element.setAttribute(name, next === true ? "" : next);
+		const value = !active
+			? null
+			: name === "value"
+			? String(next)
+			: next === true
+			? ""
+			: String(next);
+		if (value === previous) return;
+		previous = value;
+		if (value === null) remove();
+		else set(value);
 	};
-	if (name === "value" && element.localName === "select") apply.after = true;
+	const apply = values => {
+		const next = solo ? values[chunks[1]] : compose(chunks, values);
+		const id = ++token;
+		if (typeof next?.then === "function") {
+			Promise.resolve(next).then(value => {
+				if (token === id && owner.slot.held === owner) {
+					applyValue(value);
+					if (!after) owner.refresh?.();
+				}
+			}, report).catch(report);
+			return;
+		}
+		applyValue(next);
+	};
+	if (after) apply.after = true;
 	return apply;
 };
-const comment = (node, { chunks }) => values => {
-	const next = chunks
-		.map((bit, index) => index % 2 ? values[bit] ?? "" : bit)
-		.join("");
-	if (node.data !== next) node.data = next;
+const comment = (node, { chunks }, owner) => {
+	let token = 0;
+	const applyValue = next => {
+		const text = next == null ? "" : String(next);
+		if (node.data !== text) node.data = text;
+	};
+	return values => {
+		const next = compose(chunks, values);
+		const id = ++token;
+		if (typeof next?.then === "function") {
+			Promise.resolve(next).then(value => {
+				if (token === id && owner.slot.held === owner) {
+					applyValue(value);
+					owner.refresh?.();
+				}
+			}, report).catch(report);
+			return;
+		}
+		applyValue(next);
+	};
 };
-const child = (node, index) => {
-	const slot = { anchor: node, held: null };
+const child = (node, index, owner) => {
+	const slot = { anchor: node, held: null, owner };
 	const apply = values => fill(slot, values[index]);
 	apply.slot = slot;
 	return apply;
 };
 const bind = (part, root, owner) => {
 	const node = part.path.reduce(
-		(at, index) => index === CONTENT ? at.content : at.childNodes[index],
+		(at, index) =>
+			index === CONTENT ? at.content : at.childNodes[index],
 		root,
 	);
-	if (part.kind === "child") return child(node, part.index);
-	if (part.kind === "comment") return comment(node, part);
+	if (part.kind === "child") return child(node, part.index, owner);
+	if (part.kind === "comment") return comment(node, part, owner);
 	return attribute(node, part, owner);
 };
 const build = (slot, view) => {
 	const { content, parts } = compile(view.strings);
 	const root = content.cloneNode(true);
-	const instance = { strings: view.strings, head: new Comment(), slot, version: 0 };
+	const instance = {
+		strings: view.strings,
+		head: new Comment(),
+		slot,
+		version: 0,
+		current: view.values,
+		slots: [],
+		batch: 0,
+		dirty: false,
+	};
 	const binds = parts.map(part => bind(part, root, instance));
 	const sync = binds.filter(apply => !apply.after);
 	const later = binds.filter(apply => apply.after);
 	instance.slots = binds.map(apply => apply.slot).filter(Boolean);
 	instance.set = values => {
+		instance.current = values;
 		instance.version += 1;
-		sync.forEach(apply => apply(values));
-		later.forEach(apply => apply(values));
+		instance.batch += 1;
+		try {
+			sync.forEach(apply => apply(values));
+			later.forEach(apply => apply(values));
+		} finally {
+			instance.batch -= 1;
+		}
+		if (instance.dirty) instance.refresh();
+	};
+	instance.refresh = () => {
+		if (instance.slot.held !== instance) return;
+		if (instance.batch) {
+			instance.dirty = true;
+			return;
+		}
+		instance.dirty = false;
+		later.forEach(apply => apply(instance.current));
+		syncTextarea(instance.slot);
+		if (instance.slot.owner?.refresh) instance.slot.owner.refresh();
 	};
 	instance.set(view.values);
 	root.prepend(instance.head);
@@ -423,7 +590,9 @@ const place = (slot, value) => {
 				?? {
 					anchor: anchor.parentNode.insertBefore(new Comment(), anchor),
 					held: null,
+					owner: slot.owner,
 				};
+			cell.owner = slot.owner;
 			fill(cell, item);
 			return cell;
 		});
@@ -447,6 +616,7 @@ const place = (slot, value) => {
 		return value;
 	}
 	if (value?.nodeType) {
+		if (held === value) return held;
 		release(slot);
 		anchor.before(value);
 		return value;
@@ -465,7 +635,7 @@ const make = (host, view) => {
 	if (!roots.has(host)) {
 		const anchor = new Comment();
 		host.replaceChildren(anchor);
-		roots.set(host, { anchor, held: null });
+		roots.set(host, { anchor, held: null, owner: null });
 	}
 	fill(roots.get(host), view);
 	return host;
