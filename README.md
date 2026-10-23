@@ -1,4 +1,4 @@
-View is a tiny (**~4kb!**) interface library.
+View is a tiny (**~3kb!***) interface library.
 
 ```js
 import { free, html, make } from "./view.js";
@@ -12,3 +12,5 @@ const Click = ({ n = 0 } = {}) =>
 const click = document.getElementById("click");
 make(click, Click()); // free(click);
 ```
+
+_*Minified and brotli'd._
