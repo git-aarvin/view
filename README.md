@@ -1,4 +1,4 @@
-View is a tiny (**~1kb!***) interface library.
+View is a tiny (**~1kib!**\*) interface library.
 
 ```js
 import { free, html, make } from "./view.js";
