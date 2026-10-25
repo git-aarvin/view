@@ -2,117 +2,112 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1"
-		/>
+		<meta name="viewport" content="initial-scale=1" />
 		<title>Todos</title>
 		<style>
-			body {
-				font:
-					1rem system-ui,
-					sans-serif;
-				color: #333;
-				background: #f5f5f5;
-				max-width: 32rem;
-				margin: 2rem auto;
-				padding: 0 1rem;
-			}
-			h1 {
-				margin: 0;
-				font-size: 4rem;
-				font-weight: 200;
-				text-align: center;
-				color: #b83f45;
-			}
-			section {
-				background: white;
-				box-shadow: 0 2px 8px #0003;
-			}
-			header,
-			li,
-			footer {
-				display: flex;
-				align-items: center;
-				gap: 1rem;
-				padding: 0 1rem;
-			}
-			[hidden] {
-				display: none !important;
-			}
-			input {
-				font: inherit;
-			}
-			.add,
-			.edit {
-				flex: 1;
-				padding: 1rem 0;
-				font-size: 1.5rem;
-				border: 0;
-				outline: 0;
-			}
-			.edit {
-				outline: 1px solid #ccc;
-			}
-			ul {
-				margin: 0;
-				padding: 0;
-				list-style: none;
-			}
-			li {
-				font-size: 1.5rem;
-				border-top: 1px solid #eee;
-			}
-			li label {
-				flex: 1;
-				padding: 1rem 0;
-			}
-			li.done label {
-				color: #aaa;
-				text-decoration: line-through;
-			}
-			li.editing > :not(.edit) {
-				display: none;
-			}
-			.remove {
-				visibility: hidden;
-				font-size: inherit;
-				color: #c18585;
-				background: none;
-				border: 0;
-				cursor: pointer;
-			}
-			li:hover .remove {
-				visibility: visible;
-			}
-			footer {
-				justify-content: space-between;
-				padding: 0.75rem 1rem;
-				font-size: 0.9rem;
-				border-top: 1px solid #eee;
-			}
-			footer button {
-				font: inherit;
-				background: none;
-				border: 0;
-				cursor: pointer;
-			}
-			nav a {
-				padding: 0.2rem 0.5rem;
-				color: inherit;
-				text-decoration: none;
-				border: 1px solid transparent;
-				border-radius: 3px;
-			}
-			nav a.selected {
-				border-color: #ce4646;
-			}
-			small {
-				display: block;
-				margin-top: 2rem;
-				text-align: center;
-				color: #777;
-			}
+body {
+	font: 1rem system-ui, sans-serif;
+	color: #333;
+	background: #f5f5f5;
+	max-width: 32rem;
+	margin: 2rem auto;
+	padding: 0 1rem;
+}
+h1 {
+	margin: 0;
+	font-size: 4rem;
+	font-weight: 200;
+	text-align: center;
+	color: #b83f45;
+}
+section {
+	background: white;
+	box-shadow: 0 2px 8px #0003;
+}
+header,
+li,
+footer {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: 0 1rem;
+}
+[hidden] {
+	display: none !important;
+}
+input {
+	font: inherit;
+}
+.add,
+.edit {
+	flex: 1;
+	padding: 1rem 0;
+	font-size: 1.5rem;
+	border: 0;
+	outline: 0;
+}
+.edit {
+	outline: 1px solid #ccc;
+}
+ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+li {
+	font-size: 1.5rem;
+	border-top: 1px solid #eee;
+}
+li label {
+	flex: 1;
+	padding: 1rem 0;
+}
+li.done label {
+	color: #aaa;
+	text-decoration: line-through;
+}
+li.editing > :not(.edit) {
+	display: none;
+}
+.remove {
+	visibility: hidden;
+	font-size: inherit;
+	color: #c18585;
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+li:hover .remove {
+	visibility: visible;
+}
+footer {
+	justify-content: space-between;
+	padding: 0.75rem 1rem;
+	font-size: 0.9rem;
+	border-top: 1px solid #eee;
+}
+footer button {
+	font: inherit;
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+nav a {
+	padding: 0.2rem 0.5rem;
+	color: inherit;
+	text-decoration: none;
+	border: 1px solid transparent;
+	border-radius: 3px;
+}
+nav a.selected {
+	border-color: #ce4646;
+}
+small {
+	display: block;
+	margin-top: 2rem;
+	text-align: center;
+	color: #777;
+}
 		</style>
 	</head>
 	<body>
@@ -122,152 +117,157 @@
 			<a href="https://github.com/git-aarvin/view">View</a>.</small
 		>
 		<script type="module">
-			import { html, make } from "../view.js";
-			const store = "todos";
-			const filters = {
-				"": "All",
-				active: "Active",
-				completed: "Completed",
-			};
-			const which = (event) =>
-				+event.target.closest("li").dataset.index;
-			const Todos = ({
-				todos = JSON.parse(localStorage[store] ?? "[]"),
-				edit = -1,
-			} = {}) => {
-				const hash = location.hash.slice(2);
-				const filter = hash in filters ? hash : "";
-				const left = todos.filter((todo) => !todo.completed).length;
-				const save = (list) => (
-					(localStorage[store] = JSON.stringify(list)),
-					Todos({ todos: list })
-				);
-				const patch = (index, fields) =>
-					save(
-						todos.map((todo, at) =>
-							at === index ? { ...todo, ...fields } : todo,
-						),
-					);
-				const drop = (index) =>
-					save(todos.filter((todo, at) => at !== index));
-				const commit = (event) => {
-					const title = event.target.value.trim();
-					return title ? patch(edit, { title }) : drop(edit);
-				};
-				const add = (event) => {
-					const title = event.target.value.trim();
-					if (event.key !== "Enter" || !title) return;
-					event.target.value = "";
-					return save([...todos, { title, completed: false }]);
-				};
-				const all = (event) =>
-					save(
-						todos.map((todo) => ({
-							...todo,
-							completed: event.target.checked,
-						})),
-					);
-				const clear = () =>
-					save(todos.filter((todo) => !todo.completed));
-				const toggle = (event) =>
-					event.target.matches(".toggle") &&
-					patch(which(event), { completed: event.target.checked });
-				const remove = (event) =>
-					event.target.matches(".remove") && drop(which(event));
-				const begin = (event) => {
-					if (!event.target.matches("label")) return;
-					const item = event.target.closest("li");
-					queueMicrotask(() => {
-						const input = item.querySelector(".edit");
-						input.focus();
-						input.setSelectionRange(
-							input.value.length,
-							input.value.length,
-						);
-					});
-					return Todos({ todos, edit: which(event) });
-				};
-				const press = (event) => {
-					if (!event.target.matches(".edit")) return;
-					if (event.key === "Enter") return commit(event);
-					if (event.key === "Escape") return Todos({ todos });
-				};
-				const leave = (event) =>
-					edit >= 0 && event.target.matches(".edit")
-						? commit(event)
-						: undefined;
-				return html`
-					<section on:route="${() => Todos({ todos, edit })}">
-						<header>
-							<input
-								class="all"
-								type="checkbox"
-								aria-label="Toggle all"
-								checked="${!left}"
-								hidden="${!todos.length}"
-								onchange="${all}"
-							/>
-							<input
-								class="add"
-								placeholder="What needs to be done?"
-								autocomplete="off"
-								onkeydown="${add}"
-							/>
-						</header>
-						<ul
-							onchange="${toggle}"
-							onclick="${remove}"
-							ondblclick="${begin}"
-							onkeydown="${press}"
-							onfocusout="${leave}"
-						>
-							${todos.map(
-								(todo, index) =>
-									(!filter ||
-										todo.completed === (filter === "completed")) &&
-									html`
-										<li
-											data-index="${index}"
-											class="${todo.completed ? "done" : ""} ${edit === index ? "editing" : ""}"
-										>
-											<input
-												class="toggle"
-												type="checkbox"
-												checked="${todo.completed}"
-												aria-label="Toggle ${todo.title}"
-											/>
-											<label>${todo.title}</label>
-											<button
-												class="remove"
-												aria-label="Delete ${todo.title}"
-											>
-												×
-											</button>
-											${edit === index && html`<input class="edit" aria-label="Edit" value="${todo.title}" />`}
-										</li>
-									`,
-							)}
-						</ul>
-						<footer hidden="${!todos.length}">
-							<span>${left} ${left === 1 ? "item" : "items"} left</span>
-							<nav>
-								${Object.entries(filters).map(([key, label]) => html`<a href="#/${key}" class="${key === filter ? "selected" : ""}">${label}</a>`)}
-							</nav>
-							<button
-								hidden="${left === todos.length}"
-								onclick="${clear}"
-							>
-								Clear completed
-							</button>
-						</footer>
-					</section>
-				`;
-			};
-			const app = document.getElementById("app");
-			addEventListener("hashchange", () =>
-				app.firstElementChild.dispatchEvent(new Event("route")),
+import { html, make } from "../view.js";
+const store = "todos";
+const filters = {
+	"": "All",
+	active: "Active",
+	completed: "Completed",
+};
+const which = (event) => +event.target.closest("li").dataset.index;
+const Todos = ({
+	todos = JSON.parse(localStorage[store] ?? "[]"),
+	edit = -1,
+} = {}) => {
+	const hash = location.hash.slice(2);
+	const filter = hash in filters ? hash : "";
+	const left = todos.filter((todo) => !todo.completed).length;
+	const save = (list) => (
+		(localStorage[store] = JSON.stringify(list)), Todos({ todos: list })
+	);
+	const patch = (index, fields) =>
+		save(
+			todos.map((todo, at) =>
+				at === index ? { ...todo, ...fields } : todo
+			),
+		);
+	const drop = (index) =>
+		save(todos.filter((todo, at) => at !== index));
+	const commit = (event) => {
+		const title = event.target.value.trim();
+		return title ? patch(edit, { title }) : drop(edit);
+	};
+	const add = (event) => {
+		const title = event.target.value.trim();
+		if (event.key !== "Enter" || !title) return;
+		event.target.value = "";
+		return save([...todos, { title, completed: false }]);
+	};
+	const all = (event) =>
+		save(
+			todos.map((todo) => ({
+				...todo,
+				completed: event.target.checked,
+			})),
+		);
+	const clear = () => save(todos.filter((todo) => !todo.completed));
+	const toggle = (event) =>
+		event.target.matches(".toggle")
+		&& patch(which(event), { completed: event.target.checked });
+	const remove = (event) =>
+		event.target.matches(".remove") && drop(which(event));
+	const begin = (event) => {
+		if (!event.target.matches("label")) return;
+		const item = event.target.closest("li");
+		queueMicrotask(() => {
+			const input = item.querySelector(".edit");
+			input.focus();
+			input.setSelectionRange(
+				input.value.length,
+				input.value.length,
 			);
-			make(app, Todos()).querySelector(".add").focus();
+		});
+		return Todos({ todos, edit: which(event) });
+	};
+	const press = (event) => {
+		if (!event.target.matches(".edit")) return;
+		if (event.key === "Enter") return commit(event);
+		if (event.key === "Escape") return Todos({ todos });
+	};
+	const leave = (event) =>
+		edit >= 0 && event.target.matches(".edit")
+			? commit(event)
+			: undefined;
+	return html`
+		<section on:route="${() => Todos({ todos, edit })}">
+			<header>
+				<input
+					class="all"
+					type="checkbox"
+					aria-label="Toggle all"
+					checked="${!left}"
+					hidden="${!todos.length}"
+					onchange="${all}"
+				/>
+				<input
+					class="add"
+					placeholder="What needs to be done?"
+					autocomplete="off"
+					onkeydown="${add}"
+				/>
+			</header>
+			<ul
+				onchange="${toggle}"
+				onclick="${remove}"
+				ondblclick="${begin}"
+				onkeydown="${press}"
+				onfocusout="${leave}"
+			>${todos.map((todo, index) =>
+				(!filter || todo.completed === (filter === "completed"))
+				&& html`
+					<li
+						data-index="${index}"
+						class="
+							${todo.completed ? "done" : ""}
+							${edit === index ? "editing" : ""}
+						"
+					>
+						<input
+							class="toggle"
+							type="checkbox"
+							checked="${todo.completed}"
+							aria-label="Toggle ${todo.title}"
+						/>
+						<label>${todo.title}</label>
+						<button
+							class="remove"
+							aria-label="Delete ${todo.title}"
+						>
+							×
+						</button>
+						${edit === index && html`
+							<input class="edit" aria-label="Edit" value="${todo.title}" />
+						`}
+					</li>
+				`,
+			)}</ul>
+			<footer hidden="${!todos.length}">
+				<span>${left} ${left === 1 ? "item" : "items"} left</span>
+				<nav>${Object.entries(filters).map(([key, label]) =>
+					html`
+						<a 
+							href="#/${key}"
+							class="${key === filter ? "selected" : ""}"
+						>
+							${label}
+						</a>`
+				)}</nav>
+				<button
+					hidden="${left === todos.length}"
+					onclick="${clear}"
+				>
+					Clear completed
+				</button>
+			</footer>
+		</section>
+	`;
+};
+const app = document.getElementById("app");
+addEventListener(
+	"hashchange",
+	() => app.firstElementChild.dispatchEvent(new Event("route")),
+);
+make(app, Todos()).querySelector(".add").focus();
 		</script>
 	</body>
 </html>
