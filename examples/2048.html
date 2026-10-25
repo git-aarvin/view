@@ -5,140 +5,140 @@
 		<meta name="viewport" content="initial-scale=1" />
 		<title>2048</title>
 		<style>
-		body {
-			margin: 0;
-			font: 1.1rem system-ui, sans-serif;
-			color: #776e65;
-			background: #faf8ef;
-		}
-		main {
-			max-width: 30rem;
-			margin: 2rem auto;
-			padding: 0 1rem;
-		}
-		header {
-			display: flex;
-			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.5rem;
-		}
-		h1 {
-			flex: 1;
-			margin: 0;
-			font-size: 3.5rem;
-		}
-		header p {
-			margin: 0;
-			padding: 0.4rem 0.8rem;
-			font-size: 0.8rem;
-			text-align: center;
-			text-transform: uppercase;
-			color: #eee4da;
-			background: #bbada0;
-			border-radius: 3px;
-		}
-		b {
-			display: block;
-			font-size: 1.4rem;
-			color: white;
-		}
-		button {
-			font: inherit;
-			font-weight: 700;
-			padding: 0.6rem 1rem;
-			color: #f9f6f2;
-			background: #8f7a66;
-			border: 0;
-			border-radius: 3px;
-			cursor: pointer;
-		}
-		section {
-			position: relative;
-			margin-top: 1rem;
-		}
-		.board {
-			display: grid;
-			grid-template: repeat(4, 1fr) / repeat(4, 1fr);
-			gap: 0.6rem;
-			aspect-ratio: 1;
-			padding: 0.6rem;
-			container-type: inline-size;
-			touch-action: none;
-			user-select: none;
-			background: #bbada0;
-			border-radius: 6px;
-		}
-		.tile {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			min-width: 0;
-			overflow: hidden;
-			font-size: 8cqw;
-			font-weight: 700;
-			color: #f9f6f2;
-			background: #3c3a32;
-			border-radius: 3px;
-		}
-		[data-value="0"] {
-			background: #cdc1b4;
-		}
-		[data-value="2"] {
-			color: #776e65;
-			background: #eee4da;
-		}
-		[data-value="4"] {
-			color: #776e65;
-			background: #ede0c8;
-		}
-		[data-value="8"] {
-			background: #f2b179;
-		}
-		[data-value="16"] {
-			background: #f59563;
-		}
-		[data-value="32"] {
-			background: #f67c5f;
-		}
-		[data-value="64"] {
-			background: #f65e3b;
-		}
-		[data-value="128"] {
-			background: #edcf72;
-		}
-		[data-value="256"] {
-			background: #edcc61;
-		}
-		[data-value="512"] {
-			background: #edc850;
-		}
-		[data-value="1024"] {
-			background: #edc53f;
-		}
-		[data-value="2048"] {
-			background: #edc22e;
-		}
-		.message {
-			position: absolute;
-			inset: 0;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			gap: 1rem;
-			font-size: 3rem;
-			font-weight: 700;
-			background: #eee4da99;
-			border-radius: 6px;
-		}
-		.message p {
-			margin: 0;
-		}
-		.message div {
-			display: flex;
-			gap: 0.5rem;
-			font-size: 1.1rem;
-		}
+body {
+	margin: 0;
+	font: 1.1rem system-ui, sans-serif;
+	color: #776e65;
+	background: #faf8ef;
+}
+main {
+	max-width: 30rem;
+	margin: 2rem auto;
+	padding: 0 1rem;
+}
+header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+h1 {
+	flex: 1;
+	margin: 0;
+	font-size: 3.5rem;
+}
+header p {
+	margin: 0;
+	padding: 0.4rem 0.8rem;
+	font-size: 0.8rem;
+	text-align: center;
+	text-transform: uppercase;
+	color: #eee4da;
+	background: #bbada0;
+	border-radius: 3px;
+}
+b {
+	display: block;
+	font-size: 1.4rem;
+	color: white;
+}
+button {
+	font: inherit;
+	font-weight: 700;
+	padding: 0.6rem 1rem;
+	color: #f9f6f2;
+	background: #8f7a66;
+	border: 0;
+	border-radius: 3px;
+	cursor: pointer;
+}
+section {
+	position: relative;
+	margin-top: 1rem;
+}
+.board {
+	display: grid;
+	grid-template: repeat(4, 1fr) / repeat(4, 1fr);
+	gap: 0.6rem;
+	aspect-ratio: 1;
+	padding: 0.6rem;
+	container-type: inline-size;
+	touch-action: none;
+	user-select: none;
+	background: #bbada0;
+	border-radius: 6px;
+}
+.tile {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	overflow: hidden;
+	font-size: 8cqw;
+	font-weight: 700;
+	color: #f9f6f2;
+	background: #3c3a32;
+	border-radius: 3px;
+}
+[data-value="0"] {
+	background: #cdc1b4;
+}
+[data-value="2"] {
+	color: #776e65;
+	background: #eee4da;
+}
+[data-value="4"] {
+	color: #776e65;
+	background: #ede0c8;
+}
+[data-value="8"] {
+	background: #f2b179;
+}
+[data-value="16"] {
+	background: #f59563;
+}
+[data-value="32"] {
+	background: #f67c5f;
+}
+[data-value="64"] {
+	background: #f65e3b;
+}
+[data-value="128"] {
+	background: #edcf72;
+}
+[data-value="256"] {
+	background: #edcc61;
+}
+[data-value="512"] {
+	background: #edc850;
+}
+[data-value="1024"] {
+	background: #edc53f;
+}
+[data-value="2048"] {
+	background: #edc22e;
+}
+.message {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	font-size: 3rem;
+	font-weight: 700;
+	background: #eee4da99;
+	border-radius: 6px;
+}
+.message p {
+	margin: 0;
+}
+.message div {
+	display: flex;
+	gap: 0.5rem;
+	font-size: 1.1rem;
+}
 		</style>
 	</head>
 	<body>
@@ -150,7 +150,7 @@
 			</p>
 		</main>
 		<script type="module">
-		import { html, make } from "../view.js";
+import { html, make } from "../view.js";
 const app = document.getElementById("app");
 const keys = {
 	arrowleft: "left",
