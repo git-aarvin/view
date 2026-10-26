@@ -1,0 +1,9 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+*::selection {
+	background-color: #586e75;
+	color: white;
+}
