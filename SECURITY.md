@@ -1,0 +1,1 @@
+Since View is a rendering library, security is wholly out of scope. The library assumes good-faith usage, and so edge cases should be handled elsewhere. The only possible regression would be the use of deprecated browser APIs, in which case you should contact mail_aarvin@icloud.com.
