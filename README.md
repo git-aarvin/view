@@ -6,7 +6,8 @@ import { free, html, make } from "./view.js";
 
 ```js
 const Click = ({ n = 0 } = {}) =>
-	html`<button onclick="${() => Click({ n: n + 1 })}">
+	html`<button onclick="${() =>
+		Click({ n: n + 1 })}">
 		I've been clicked ${n} times.
 	</button>`;
 
@@ -70,7 +71,8 @@ Event handlers are declared with an attribute whose name begins with `on` or `on
 
 ```js
 const Click = ({ n = 0 } = {}) =>
-	html`<button onclick="${() => Click({ n: n + 1 })}">
+	html`<button onclick="${() =>
+		Click({ n: n + 1 })}">
 		I've been clicked ${n} times.
 	</button>`;
 
@@ -94,7 +96,12 @@ const Page = ({ user }) =>
 		${Click({ n: user.clicks })}
 	</main>`;
 
-make(document.body, Page({ user: { name: "Ada", clicks: 3 } }));
+make(document.body, Page({
+	user: {
+		name: "Ada",
+		clicks: 3
+	}
+}));
 ```
 
 When you no longer want View to manage an element, call `free` with it. This forgets the element's binding and empties it, so the element behaves as a plain DOM node again, and a later call to `make` on it starts fresh. Everything inside the host is removed, including the nodes View created and any you added yourself, along with their event listeners. If you need to keep any of them, move them out of the host before calling `free`.
