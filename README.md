@@ -25,7 +25,8 @@ The `html` tag returns a plain object that holds the template's static strings a
 ```js
 import { html, make, free } from "./view.js";
 
-const greeting = (name) => html`<p class="hello">Hello, ${name}!</p>`;
+const greeting = (name) =>
+	html`<p class="hello">Hello, ${name}!</p>`;
 
 const host = document.getElementById("app");
 make(host, greeting("Ada"));
@@ -41,10 +42,12 @@ Inside element content, an interpolation can be a string, a number, another `htm
 
 ```js
 const List = (items) =>
-	html`<ul>${items.map((item) => html`<li>${item}</li>`)}</ul>`;
+	html`<ul>${items.map((item) =>
+		html`<li>${item}</li>`)}</ul>`;
 
 const Status = ({ done }) =>
-	html`<p>${done && html`<strong>Finished</strong>`}</p>`;
+	html`<p>${done &&
+		html`<strong>Done</strong>`}</p>`;
 ```
 
 Arrays are matched by position, not by identity, because View has no concept of keys. When an item is removed from the middle of a list, the items after it are updated in place rather than moved, so any DOM state tied to a position, such as focus or the contents of an uncontrolled input, stays with that position and not with the data that used to occupy it. When a list shrinks, the trailing elements are removed. If your items carry their own state, keep that state in your data and render from it, rather than relying on the DOM to remember it.
@@ -53,7 +56,12 @@ Inside a tag, an interpolated attribute value can be the whole value or part of 
 
 ```js
 const Button = ({ active, ready }) =>
-	html`<button class="btn ${active ? "on" : ""}" disabled="${!ready}">Save</button>`;
+	html`<button
+		class="${active && "active"}"
+		disabled="${!ready}"
+	>
+		Save
+	</button>`;
 ```
 
 The `value`, `checked`, and `selected` attributes are handled differently. They are set as properties rather than attributes, so they reflect what the user has done to the element. The `value` property is written only when it differs from the current contents of the field, which avoids moving the caret while someone is typing. Other attributes are written only when their value has changed since the previous render.
